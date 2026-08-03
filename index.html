@@ -1,0 +1,382 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sandhills Pace">
+<meta name="theme-color" content="#0E0F12">
+<title>Sandhills Pace</title>
+<style>
+  :root{
+    --bg:#0E0F12;--surface:#191B20;--surface2:#22252C;--surface3:#2A2E37;--line:#2C303A;
+    --ink:#F2F4F8;--muted:#8A90A0;--amber:#FFB000;--green:#35E06B;--cyan:#4FC3F7;--red:#FF4D4D;--indigo:#8B93FF;--teal:#33D6C9;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);padding:14px;max-width:520px;margin-inline:auto}
+  .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 8px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+  .classbar{display:flex;align-items:center;gap:10px}
+  .classbar select{background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-family:var(--mono);font-size:16px}
+  .classbar .tot{margin-left:auto;font-family:var(--mono);color:var(--amber);font-weight:700}
+  .legtab{display:flex;gap:6px;margin-bottom:12px}
+  .legtab button{flex:1;padding:11px;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:10px;font-weight:700;font-size:13px}
+  .legtab button[aria-pressed="true"]{background:var(--surface2);color:var(--ink);border-color:var(--indigo)}
+  .clock{font-family:var(--mono);font-weight:700;font-variant-numeric:tabular-nums;font-size:44px;line-height:1;text-align:center;margin-bottom:2px}
+  .clock.run{color:var(--green)} .clock.armed{color:var(--amber);font-size:38px}
+  .armat{text-align:center;font-size:11px;color:var(--muted);font-family:var(--mono);min-height:14px;margin-bottom:8px}
+  .mavg{text-align:center;margin-bottom:12px}
+  .mavg .big{font-family:var(--mono);font-weight:800;font-size:38px;color:var(--amber);font-variant-numeric:tabular-nums}
+  .mavg .lbl{font-size:10px;letter-spacing:.14em;color:var(--muted);font-weight:700}
+  .mavg .delta{font-family:var(--mono);font-size:13px;margin-top:2px}
+  .tiles{display:flex;gap:8px;margin-bottom:8px}
+  .tile{flex:1;background:var(--surface2);border-radius:10px;padding:10px 4px;text-align:center}
+  .tile .v{font-family:var(--mono);font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
+  .tile .t{font-size:8px;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-top:3px}
+  .totline{text-align:center;font-family:var(--mono);font-size:12px;margin-bottom:4px;min-height:14px}
+  .finflag{text-align:center;font-size:11px;font-weight:700;color:var(--green);min-height:14px;margin-bottom:4px}
+  .gps{font-size:11px;color:var(--muted);text-align:center;font-family:var(--mono)}
+  .settings label.tog{display:flex;align-items:center;gap:10px;font-size:14px;padding:6px 0;cursor:pointer}
+  .settings input[type=checkbox]{width:20px;height:20px;accent-color:var(--indigo)}
+  .seg{display:flex;gap:6px;margin:4px 0 6px}
+  .seg button{flex:1;padding:8px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);border-radius:8px;font-weight:700;font-size:13px}
+  .seg button[aria-pressed="true"]{color:var(--ink);border-color:var(--amber)}
+  .controls{display:flex;gap:8px;margin-bottom:8px}
+  .btn{flex:1;padding:13px;border:none;border-radius:12px;font-weight:800;font-size:14px;color:#0b0c0f;letter-spacing:.02em}
+  .btn.start{background:var(--green)}.btn.stop{background:var(--red);color:#fff}.btn.armed{background:var(--amber)}
+  .btn.split{background:var(--amber)}.btn.split:disabled{background:#3a3d45;color:#7a7f8c}
+  .btn.fin{background:var(--indigo)}.btn.fin.ready{background:var(--green)}.btn.fin:disabled{background:#3a3d45;color:#7a7f8c}
+  .btn.reset{background:var(--surface3);color:var(--muted)}.btn.cal{background:var(--teal)}
+  .btn.push{background:var(--surface3);color:var(--muted);width:100%;margin-bottom:8px}
+  .btn.gps{background:transparent;border:1px solid var(--line);color:var(--cyan);font-size:13px;padding:11px;width:100%;margin-bottom:8px}
+  h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:700}
+  .srow{display:flex;justify-content:space-between;padding:5px 0;font-size:14px}
+  .srow span{color:var(--muted)}.srow b{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}.row label{font-size:14px;color:var(--muted);flex:1}
+  input.txt{background:var(--surface2);border:1px solid var(--line);color:var(--ink);font-family:var(--mono);font-size:16px;text-align:right;border-radius:9px;padding:8px 10px;width:100px}
+  input.txt:focus{outline:none;border-color:var(--amber)}
+  input.lbl{font-family:var(--sans);text-align:left;flex:1;width:auto}
+  .calread{text-align:center;margin-bottom:10px}
+  .calread .cd{font-family:var(--mono);font-weight:800;font-size:34px;color:var(--teal);font-variant-numeric:tabular-nums}
+  .calread .cc{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:3px}
+  .cap{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .cap:last-child{border-bottom:none}
+  .cap .cl{color:var(--ink);font-weight:600}.cap .cr{text-align:right;font-family:var(--mono)}
+  .cap .cr small{color:var(--muted);font-size:11px}
+  .loc{color:var(--teal);font-size:11px}
+  .wp{border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px;background:var(--surface2)}
+  .wp-top{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .dist-wrap{display:flex;align-items:center;gap:5px}.dist-wrap em{color:var(--muted);font-style:normal;font-size:13px}
+  .wp .dw{width:64px}
+  .wp-mid{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}
+  .pair{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}.pair b{font-family:var(--mono);color:var(--green);font-size:15px;font-weight:700}
+  .act{width:100px;background:#14161b}
+  .wp-diff{display:flex;align-items:center;gap:9px;min-height:20px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .wp-diff .dv{font-size:16px;font-weight:700}.wp-diff .dt{font-size:10px;letter-spacing:.1em;font-weight:700}.wp-diff .da{margin-left:auto;color:var(--muted);font-size:12px}
+  .addwp{background:transparent;border:1px dashed var(--line);color:var(--muted);border-radius:10px;padding:9px;width:100%;font-weight:700;font-size:13px}
+  .foot{color:var(--muted);font-size:12px;line-height:1.5;margin:2px 2px 24px}
+</style>
+
+<p class="eyebrow">Sandhills Open Road &middot; GPS Pace</p>
+
+<div class="card"><div class="classbar">
+  <span style="color:var(--muted)">Class</span><select id="cls"></select><span class="tot" id="totperfect">—</span>
+</div></div>
+
+<div class="legtab" id="legtab">
+  <button data-leg="0" aria-pressed="true">Leg 1 (up)</button>
+  <button data-leg="1" aria-pressed="false">Leg 2 (return)</button>
+</div>
+
+<div class="card">
+  <div class="clock" id="clock">0:00.00</div>
+  <div class="armat" id="armat"></div>
+  <div class="mavg"><div class="big" id="mavg">—</div><div class="lbl">MOVING AVG (mph)</div><div class="delta" id="delta"></div></div>
+  <div class="tiles">
+    <div class="tile"><div class="v" id="hand">—</div><div class="t">TIME IN HAND</div></div>
+    <div class="tile"><div class="v" id="req">—</div><div class="t">REQ NOW</div></div>
+    <div class="tile"><div class="v" id="spd">—</div><div class="t">GPS SPEED</div></div>
+  </div>
+  <div class="totline" id="totline"></div>
+  <div class="finflag" id="finflag"></div>
+  <div class="gps" id="gps">GPS off &middot; 0.00 mi</div>
+</div>
+
+<div class="card settings">
+  <label class="tog"><input type="checkbox" id="autostart"> Auto-start on <span id="ivlabel">30</span>s GPS tree</label>
+  <div class="seg" id="ivwrap" style="display:none">
+    <button data-iv="30" aria-pressed="true">30s</button><button data-iv="60" aria-pressed="false">60s</button>
+  </div>
+  <label class="tog"><input type="checkbox" id="autofinish"> Auto-finish at leg distance</label>
+  <label class="tog"><input type="checkbox" id="autosplit"> GPS auto-split at calibrated waypoints</label>
+</div>
+
+<button class="btn gps" id="gpsbtn">Enable GPS</button>
+<div class="controls">
+  <button class="btn start" id="startstop">START</button>
+  <button class="btn split" id="split" disabled>SPLIT</button>
+</div>
+<button class="btn push" id="push" style="display:none">PUSH START +30s</button>
+<div class="controls">
+  <button class="btn fin" id="fin">FINISH LEG 1 →</button>
+  <button class="btn reset" id="reset">Reset</button>
+</div>
+
+<div class="card"><h2 id="sumhead">Leg summary</h2><div id="sumbody"></div></div>
+
+<div class="card">
+  <div class="row"><label id="plab">Leg perfect</label><input class="txt" id="perfect" inputmode="text" value="14:21.000"></div>
+  <div class="row"><label>Measured distance (mi)</label><input class="txt" id="dist" inputmode="decimal" value="28.73"></div>
+  <div class="row"><label>Hold speed</label><b id="hold" style="font-family:var(--mono);color:var(--amber)">—</b></div>
+</div>
+
+<div class="card"><h2 id="wphead">Waypoints</h2><div id="wps"></div><button class="addwp" id="addwp">+ Add waypoint</button></div>
+
+<div class="card">
+  <h2>Calibrate course (pre-drive)</h2>
+  <div class="legtab" id="callegtab" style="margin-bottom:10px">
+    <button data-cl="0" aria-pressed="true">Leg 1</button><button data-cl="1" aria-pressed="false">Leg 2</button>
+  </div>
+  <div class="calread"><div class="cd" id="cald">0.000 mi</div><div class="cc" id="calc">— , —</div></div>
+  <div class="controls" id="calctrls"></div>
+  <div id="captures"></div>
+  <div class="controls" style="margin-top:8px"><button class="btn fin" id="savecal" disabled>SAVE TO LEG</button></div>
+</div>
+
+<p class="foot">Pre-drive: pick the leg, <b style="color:var(--green)">START</b> at the line, <b style="color:var(--amber)">MARK POINT</b>
+at each marker, <b style="color:var(--indigo)">MARK FINISH</b> at the end, then SAVE — it writes the exact leg length and
+each point's distance + coordinates. On race day, turn on <b>GPS auto-split</b> and it stamps each calibrated waypoint by
+position as you pass it, drift-free. GPS needs Location permission — open in Safari if blocked here.</p>
+
+<script>
+  const $=id=>document.getElementById(id);
+  const PERFECT={80:[1291.5,1197.0],90:[1148.0,1064.0],95:[1087.579,1008.0],100:[1033.2,957.6],
+    105:[984.0,912.0],110:[939.273,870.545],115:[898.435,832.696],120:[861.0,798.0]};
+  const CLASSES=[80,90,95,100,105,110,115,120];
+
+  let selClass=120, activeLeg=0;
+  const legs=[
+    {name:"Leg 1 (up)",perfect:"14:21.000",dist:"28.73",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,
+     wps:[{label:"WP 1",d:"28.00",a:"",la:null,lo:null},{label:"Finish",d:"28.73",a:"",la:null,lo:null}]},
+    {name:"Leg 2 (return)",perfect:"13:18.000",dist:"26.66",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,
+     wps:[{label:"Rd 806",d:"26.19",a:"",la:null,lo:null},{label:"WP 2",d:"26.40",a:"",la:null,lo:null},{label:"Finish",d:"26.66",a:"",la:null,lo:null}]}
+  ];
+
+  let startTs=null,stoppedElapsed=0,running=false,armedStart=null,autoFinished=false;
+  let autoStartOn=false,autoFinishOn=false,autoSplitOn=false,treeIv=30;
+  let watchId=null,lastFix=null,distMi=0,instSpd=0,gpsMsg="GPS off",curLat=null,curLon=null,curAcc=null;
+  let calibrating=false,captures=[],selCalLeg=0;
+  const elapsed=()=>running?(Date.now()-startTs)/1000:stoppedElapsed;
+
+  function fmt(sec){if(sec==null||!isFinite(sec))return "—";const m=Math.floor(sec/60),s=sec-m*60;return m+":"+s.toFixed(2).padStart(5,"0");}
+  function fmt3(sec){const m=Math.floor(sec/60),s=sec-m*60;return m+":"+s.toFixed(3).padStart(6,"0");}
+  function wall(ms){return new Date(ms).toTimeString().slice(0,8);}
+  function parseClock(str){const t=(str||"").trim();if(!t)return null;const p=t.split(":");let v=p.length===2?(parseFloat(p[0])||0)*60+(parseFloat(p[1])||0):parseFloat(t);return v>0?v:null;}
+  function coord(la,lo){return (la==null||lo==null)?"— , —":la.toFixed(5)+", "+lo.toFixed(5);}
+
+  const leg=()=>legs[activeLeg];
+  const perfectSec=L=>parseClock(L.perfect);
+  const legDist=L=>parseFloat(L.dist);
+  function holdSpeed(L){const d=legDist(L),p=perfectSec(L);return (d>0&&p>0)?d/(p/3600):null;}
+  const totalPerfect=()=>{const a=perfectSec(legs[0]),b=perfectSec(legs[1]);return (a&&b)?a+b:null;};
+
+  function haversine(a,b){const R=6371000,r=x=>x*Math.PI/180;const dLat=r(b.lat-a.lat),dLon=r(b.lon-a.lon);
+    const s=Math.sin(dLat/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(s));}
+
+  function enableGPS(){
+    if(!navigator.geolocation){gpsMsg="No geolocation API";return;}
+    try{watchId=navigator.geolocation.watchPosition(pos=>{gpsMsg="GPS ready";const c=pos.coords;
+      curLat=c.latitude;curLon=c.longitude;curAcc=c.accuracy;
+      if(c.speed!=null&&c.speed>=0)instSpd=c.speed*2.2369363;
+      if(running||calibrating){const f={lat:c.latitude,lon:c.longitude};if(lastFix){const m=haversine(lastFix,f);if(isFinite(m)&&m>=0&&m<1500)distMi+=m/1609.344;}lastFix=f;}
+      if(calibrating&&!captures.some(x=>x.kind==='start')){captures.unshift({label:'Start',dist:0,lat:curLat,lon:curLon,kind:'start'});renderCaptures();refreshCalBtns();}
+      if(running&&autoSplitOn)proximityCheck();
+      if(calibrating)paintCal();
+    },err=>{gpsMsg="GPS blocked — open in Safari";},{enableHighAccuracy:true,maximumAge:0,timeout:10000});
+    }catch(e){gpsMsg="GPS unavailable";}
+  }
+  const snap=mi=>{distMi=mi;lastFix=null;};
+
+  function proximityCheck(){
+    const L=leg();const i=L.wps.findIndex(w=>!w.a.trim());if(i<0)return;
+    const w=L.wps[i];if(w.la==null||w.lo==null||curLat==null)return;
+    const spdMps=instSpd/2.2369363,th=Math.max(40,spdMps*1.6);
+    if(haversine({lat:curLat,lon:curLon},{lat:w.la,lon:w.lo})<=th)splitNext();
+  }
+
+  // timer
+  function nextBoundary(iv){const now=Date.now()/1000;return (Math.floor(now/iv)+1)*iv*1000;}
+  function startAt(ms){startTs=ms;stoppedElapsed=0;running=true;armedStart=null;lastFix=null;refreshButtons();}
+  function stopClock(){if(running){stoppedElapsed=elapsed();running=false;refreshButtons();}}
+  function manualStart(){startTs=Date.now()-stoppedElapsed*1000;running=true;lastFix=null;refreshButtons();}
+  function arm(){armedStart=nextBoundary(treeIv);autoFinished=false;refreshButtons();}
+  function cancelArm(){armedStart=null;refreshButtons();}
+  function primaryAction(){if(running)stopClock();else if(autoStartOn){armedStart==null?arm():cancelArm();}else manualStart();paintDash();}
+  function splitNext(){
+    if(startTs===null&&!running)return;const L=leg();const i=L.wps.findIndex(w=>!w.a.trim());if(i<0)return;
+    L.wps[i].a=fmt(elapsed());const d=parseFloat(L.wps[i].d);if(isFinite(d))snap(d);
+    const inp=$("wps").querySelector('.act[data-i="'+i+'"]');if(inp)inp.value=L.wps[i].a;
+    updateCard(i);updateSplit();
+  }
+  function finishLeg(){
+    leg().rec=elapsed();running=false;startTs=null;stoppedElapsed=0;distMi=0;instSpd=0;lastFix=null;armedStart=null;autoFinished=false;
+    if(activeLeg===0)setLeg(1);else{refreshButtons();paintSummary();paintDash();}
+  }
+  function resetAll(){
+    running=false;startTs=null;stoppedElapsed=0;distMi=0;instSpd=0;lastFix=null;armedStart=null;autoFinished=false;
+    legs.forEach(L=>{L.rec=null;L.wps.forEach(w=>w.a="");});setLeg(0);
+  }
+  function updateSplit(){const i=leg().wps.findIndex(w=>!w.a.trim());$("split").disabled=((startTs===null&&!running)||i<0);}
+  function refreshButtons(){
+    const b=$("startstop");
+    if(running){b.textContent="STOP";b.className="btn stop";}
+    else if(autoStartOn){armedStart==null?(b.textContent="ARM (TREE)",b.className="btn start"):(b.textContent="ARMED · CANCEL",b.className="btn armed");}
+    else{b.textContent="START";b.className="btn start";}
+    $("push").style.display=(autoStartOn&&armedStart!=null)?"block":"none";$("push").textContent="PUSH START +"+treeIv+"s";
+    const f=$("fin");f.className="btn fin"+(autoFinished?" ready":"");f.textContent=activeLeg===0?"FINISH LEG 1 →":"FINISH LEG 2";
+  }
+
+  setInterval(()=>{
+    if(armedStart!=null&&Date.now()>=armedStart)startAt(armedStart);
+    if(running&&autoFinishOn){const ld=legDist(leg());if(ld>0&&distMi>=ld){stopClock();autoFinished=true;refreshButtons();}}
+    if(running||armedStart!=null)paintDash();
+  },50);
+
+  function paintDash(){
+    const L=leg(),e=elapsed(),d=distMi,hold=holdSpeed(L);
+    const ck=$("clock");
+    if(armedStart!=null){const rem=Math.max(0,(armedStart-Date.now())/1000);ck.textContent="ARM "+rem.toFixed(1)+"s";ck.className="clock armed";$("armat").textContent="starts at "+wall(armedStart);}
+    else{ck.textContent=fmt(e);ck.className="clock"+(running?" run":"");$("armat").textContent="";}
+    const mAvg=(d>0&&e>0)?d/(e/3600):null;$("mavg").textContent=mAvg!=null?mAvg.toFixed(2):"—";
+    if(mAvg!=null&&hold){const dl=mAvg-hold,el=$("delta");el.textContent=(dl>=0?"+":"−")+Math.abs(dl).toFixed(2)+" vs hold "+hold.toFixed(2);el.style.color=dl>=0?"var(--amber)":"var(--cyan)";}else $("delta").textContent="";
+    let hand=null;if(hold&&hold>0&&e>0)hand=(d/hold)*3600-e;
+    const h=$("hand");if(hand!=null){h.textContent=(hand>=0?"+":"−")+Math.abs(hand).toFixed(1)+"s";h.style.color=hand>=0?"var(--amber)":"var(--cyan)";}else{h.textContent="—";h.style.color="var(--ink)";}
+    let req=null;const p=perfectSec(L),dist=legDist(L);if(p&&dist){const remD=dist-d,remT=p-e;if(remD>0&&remT>0)req=remD/(remT/3600);}
+    $("req").textContent=req!=null?req.toFixed(1):"—";$("spd").textContent=instSpd?instSpd.toFixed(0):"0";
+    const tl=$("totline");
+    if(activeLeg===1&&legs[0].rec!=null&&perfectSec(legs[0])&&hold&&hold>0&&e>0){const bank=perfectSec(legs[0])-legs[0].rec,tot=bank+((d/hold)*3600-e);
+      tl.textContent="TOTAL in hand: "+(tot>=0?"+":"−")+Math.abs(tot).toFixed(1)+"s  (Leg 1 "+(bank>=0?"+":"−")+Math.abs(bank).toFixed(1)+"s)";tl.style.color=tot>=0?"var(--amber)":"var(--cyan)";}else tl.textContent="";
+    $("finflag").textContent=autoFinished?"● FINISH captured by distance — tap FINISH LEG":"";
+    $("gps").innerHTML=gpsMsg+" &middot; "+d.toFixed(2)+" mi &middot; hold "+(hold?hold.toFixed(2):"—")+" mph";
+    $("hold").textContent=hold?hold.toFixed(2)+" mph":"—";$("totperfect").textContent=totalPerfect()!=null?"Total "+fmt3(totalPerfect()):"—";
+  }
+
+  function paintSummary(){
+    const L=leg();let h="";
+    h+='<div class="srow"><span>Perfect time</span><b>'+L.perfect+'</b></div>';
+    h+='<div class="srow"><span>Measured distance</span><b>'+L.dist+' mi</b></div>';
+    const hold=holdSpeed(L);h+='<div class="srow"><span>Hold speed</span><b>'+(hold?hold.toFixed(2)+' mph':'—')+'</b></div>';
+    if(L.startLat!=null){const n=L.wps.filter(w=>w.la!=null).length;h+='<div class="srow"><span>Calibrated</span><b style="color:var(--teal)">✓ '+n+' pts</b></div>';}
+    if(L.rec!=null){h+='<div class="srow"><span>Actual time</span><b>'+fmt(L.rec)+'</b></div>';
+      const p=perfectSec(L);if(p){const df=p-L.rec;h+='<div class="srow"><span>Result</span><b style="color:'+(df>=0?"var(--amber)":"var(--cyan)")+'">'+(df>=0?"+":"−")+Math.abs(df).toFixed(2)+'s '+(df>=0?"FAST":"SLOW")+'</b></div>';}}
+    if(activeLeg===1&&legs[0].rec!=null&&legs[1].rec!=null&&totalPerfect()!=null){const tot=legs[0].rec+legs[1].rec,td=totalPerfect()-tot;
+      h+='<div class="srow" style="border-top:1px solid var(--line);margin-top:4px;padding-top:8px"><span>TOTAL actual</span><b>'+fmt(tot)+'</b></div>';
+      h+='<div class="srow"><span>TOTAL vs perfect</span><b>'+(td>=0?"+":"−")+Math.abs(td).toFixed(2)+'s</b></div>';
+      const d1=legDist(legs[0]),d2=legDist(legs[1]);if(d1&&d2&&tot>0)h+='<div class="srow"><span>Overall avg</span><b>'+((d1+d2)/(tot/3600)).toFixed(2)+' mph</b></div>';}
+    $("sumhead").textContent=L.name+" summary";$("sumbody").innerHTML=h;
+  }
+
+  function updateCard(i){
+    const L=leg(),el=$("wps").querySelector('.wp[data-i="'+i+'"]');if(!el)return;
+    const hold=holdSpeed(L),d=parseFloat(L.wps[i].d),tSec=(hold>0&&d>0)?d/hold*3600:null;
+    el.querySelector(".tt").textContent=tSec!=null?fmt(tSec):"—";
+    const aSec=parseClock(L.wps[i].a),df=el.querySelector(".wp-diff");
+    if(tSec!=null&&aSec!=null){const diff=tSec-aSec,avg=d/(aSec/3600),on=Math.abs(diff)<0.20;
+      const tag=on?"ON PACE":(diff>0?"FAST":"SLOW"),col=on?"var(--green)":(diff>0?"var(--amber)":"var(--cyan)");
+      df.innerHTML='<span class="dv" style="color:'+col+'">'+(diff>=0?"+":"−")+Math.abs(diff).toFixed(2)+'s</span><span class="dt" style="color:'+col+'">'+tag+'</span><span class="da">'+avg.toFixed(2)+' mph avg</span>';
+    }else df.innerHTML="";
+  }
+  function renderWaypoints(){
+    const L=leg();$("wphead").textContent=L.name+" waypoints";
+    $("wps").innerHTML=L.wps.map((w,i)=>
+      '<div class="wp" data-i="'+i+'"><div class="wp-top"><input class="txt lbl" data-i="'+i+'" data-k="label" value="'+w.label+'">'
+      +(w.la!=null?'<span class="loc">●</span>':'')
+      +'<span class="dist-wrap"><input class="txt dw" data-i="'+i+'" data-k="d" inputmode="decimal" value="'+w.d+'"><em>mi</em></span></div>'
+      +'<div class="wp-mid"><span class="pair">Tgt <b class="tt">—</b></span><span class="pair">Act <input class="txt act" data-i="'+i+'" data-k="a" inputmode="text" placeholder="mm:ss.ss" value="'+w.a+'"></span></div>'
+      +'<div class="wp-diff"></div></div>').join("");
+    $("wps").querySelectorAll("input").forEach(inp=>inp.addEventListener("input",e=>{const i=+e.target.dataset.i,k=e.target.dataset.k;leg().wps[i][k]=e.target.value;updateCard(i);updateSplit();}));
+    L.wps.forEach((_,i)=>updateCard(i));
+  }
+
+  // ---- calibration
+  function paintCal(){$("cald").textContent=distMi.toFixed(3)+" mi";$("calc").textContent=coord(curLat,curLon)+"  ·  ±"+(curAcc?curAcc.toFixed(0):"—")+"m  ·  "+(instSpd?instSpd.toFixed(0):"0")+" mph";}
+  function refreshCalBtns(){
+    const c=$("calctrls");
+    if(!calibrating){c.innerHTML='<button class="btn start" id="startcal">START AT LINE</button>';$("startcal").onclick=startCal;}
+    else{c.innerHTML='<button class="btn split" id="markpt">MARK POINT</button><button class="btn fin" id="markfin">MARK FINISH</button>';$("markpt").onclick=()=>markPoint('wp');$("markfin").onclick=()=>markPoint('finish');}
+    $("savecal").disabled=!captures.some(x=>x.kind==='finish');
+  }
+  function renderCaptures(){
+    $("captures").innerHTML=captures.map(x=>
+      '<div class="cap"><span class="cl">'+x.label+'</span><span class="cr">'+x.dist.toFixed(3)+' mi<br><small>'+coord(x.lat,x.lon)+'</small></span></div>').join("")
+      || '<div style="color:var(--muted);font-size:13px">Tap START at the line, then MARK each marker. MARK FINISH at the end.</div>';
+    $("savecal").disabled=!captures.some(x=>x.kind==='finish');
+  }
+  function startCal(){captures=[];calibrating=true;distMi=0;lastFix=null;if(!watchId)enableGPS();refreshCalBtns();renderCaptures();paintCal();}
+  function markPoint(kind){if(!calibrating||curLat==null)return;const n=captures.filter(x=>x.kind==='wp').length+1;
+    captures.push({label:kind==='finish'?'Finish':'WP '+n,dist:distMi,lat:curLat,lon:curLon,kind:kind});
+    if(kind==='finish'){calibrating=false;refreshCalBtns();}renderCaptures();}
+  function saveCal(){
+    const L=legs[selCalLeg];
+    const s=captures.find(x=>x.kind==='start');if(s){L.startLat=s.lat;L.startLon=s.lon;}
+    const f=captures.find(x=>x.kind==='finish');if(f){L.dist=f.dist.toFixed(2);L.endLat=f.lat;L.endLon=f.lon;}
+    let wps=captures.filter(x=>x.kind==='wp').map(x=>({label:x.label,d:x.dist.toFixed(2),a:"",la:x.lat,lo:x.lon}));
+    if(f)wps.push({label:"Finish",d:f.dist.toFixed(2),a:"",la:f.lat,lo:f.lon});
+    if(wps.length)L.wps=wps;
+    captures=[];renderCaptures();refreshCalBtns();
+    if(selCalLeg===activeLeg){syncSetup();renderWaypoints();}
+    paintSummary();paintDash();saveState();
+  }
+
+  function syncSetup(){$("perfect").value=leg().perfect;$("dist").value=leg().dist;$("plab").textContent=leg().name+" perfect";}
+  function setLeg(n){activeLeg=n;[...$("legtab").children].forEach(b=>b.setAttribute("aria-pressed",(+b.dataset.leg===n)));syncSetup();renderWaypoints();updateSplit();refreshButtons();paintSummary();paintDash();}
+  function applyClass(c){selClass=c;legs[0].perfect=fmt3(PERFECT[c][0]);legs[1].perfect=fmt3(PERFECT[c][1]);syncSetup();renderWaypoints();paintSummary();paintDash();}
+
+  // ---- persistence (survives closing the home-screen app)
+  const LSKEY="sandhills_pace_v1";
+  function saveState(){try{
+    const cfg={selClass,autoStartOn,autoFinishOn,autoSplitOn,treeIv,
+      legs:legs.map(L=>({perfect:L.perfect,dist:L.dist,startLat:L.startLat,startLon:L.startLon,endLat:L.endLat,endLon:L.endLon,
+        wps:L.wps.map(w=>({label:w.label,d:w.d,la:w.la,lo:w.lo}))}))};
+    localStorage.setItem(LSKEY,JSON.stringify(cfg));
+  }catch(e){}}
+  function loadState(){try{
+    const s=localStorage.getItem(LSKEY); if(!s) return;
+    const o=JSON.parse(s);
+    if(o.selClass) selClass=o.selClass;
+    if(typeof o.autoStartOn==='boolean') autoStartOn=o.autoStartOn;
+    if(typeof o.autoFinishOn==='boolean') autoFinishOn=o.autoFinishOn;
+    if(typeof o.autoSplitOn==='boolean') autoSplitOn=o.autoSplitOn;
+    if(o.treeIv) treeIv=o.treeIv;
+    if(Array.isArray(o.legs)) o.legs.forEach((L,i)=>{ if(i<2){
+      if(L.perfect) legs[i].perfect=L.perfect;
+      if(L.dist) legs[i].dist=L.dist;
+      legs[i].startLat=L.startLat??null; legs[i].startLon=L.startLon??null;
+      legs[i].endLat=L.endLat??null; legs[i].endLon=L.endLon??null;
+      if(Array.isArray(L.wps)) legs[i].wps=L.wps.map(w=>({label:w.label,d:w.d,a:"",la:w.la??null,lo:w.lo??null}));
+    }});
+  }catch(e){}}
+
+  loadState();
+  CLASSES.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;if(c===selClass)o.selected=true;$("cls").appendChild(o);});
+  $("cls").addEventListener("change",e=>applyClass(+e.target.value));
+  $("legtab").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setLeg(+b.dataset.leg);});
+  $("callegtab").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;selCalLeg=+b.dataset.cl;[...$("callegtab").children].forEach(x=>x.setAttribute("aria-pressed",x===b));});
+  $("perfect").addEventListener("input",e=>{leg().perfect=e.target.value;renderWaypoints();paintSummary();paintDash();});
+  $("dist").addEventListener("input",e=>{leg().dist=e.target.value;renderWaypoints();paintSummary();paintDash();});
+  $("startstop").onclick=primaryAction;$("split").onclick=splitNext;$("fin").onclick=finishLeg;$("reset").onclick=resetAll;$("gpsbtn").onclick=enableGPS;$("savecal").onclick=saveCal;
+  $("push").onclick=()=>{if(armedStart!=null){armedStart+=treeIv*1000;paintDash();}};
+  $("addwp").onclick=()=>{leg().wps.push({label:"WP "+(leg().wps.length+1),d:"",a:"",la:null,lo:null});renderWaypoints();};
+  $("autostart").addEventListener("change",e=>{autoStartOn=e.target.checked;$("ivwrap").style.display=autoStartOn?"flex":"none";if(!autoStartOn)armedStart=null;refreshButtons();paintDash();});
+  $("autofinish").addEventListener("change",e=>{autoFinishOn=e.target.checked;});
+  $("autosplit").addEventListener("change",e=>{autoSplitOn=e.target.checked;});
+  $("ivwrap").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;treeIv=+b.dataset.iv;[...$("ivwrap").children].forEach(x=>x.setAttribute("aria-pressed",x===b));$("ivlabel").textContent=treeIv;refreshButtons();});
+
+  // reflect saved settings + persist on any config change
+  $("autostart").checked=autoStartOn; $("autofinish").checked=autoFinishOn; $("autosplit").checked=autoSplitOn;
+  $("ivwrap").style.display=autoStartOn?"flex":"none"; $("ivlabel").textContent=treeIv;
+  [...$("ivwrap").children].forEach(x=>x.setAttribute("aria-pressed",(+x.dataset.iv===treeIv)));
+  document.addEventListener('input', saveState);
+  document.addEventListener('change', saveState);
+
+  setLeg(0);refreshButtons();refreshCalBtns();renderCaptures();
+</script>
