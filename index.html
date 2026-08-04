@@ -81,11 +81,16 @@
 
   /* Drive Mode — big landscape screen for the wheel mount */
   .dv-overlay{position:fixed;inset:0;background:#0B0C0F;z-index:1000;display:none;flex-direction:column;padding:14px;gap:8px}
-  .dv-top{display:flex;align-items:center;gap:12px}
-  .dv-clock{font-family:var(--mono);font-weight:800;font-size:clamp(28px,6vw,44px);font-variant-numeric:tabular-nums}
-  .dv-spd{margin-left:auto;font-family:var(--mono);color:var(--muted);font-size:16px}
-  .dv-spd b{color:var(--ink);font-size:clamp(20px,4vw,30px)}
+  .dv-top{display:flex;align-items:center;gap:6px}
+  .dv-clock{flex:1;text-align:center;font-family:var(--mono);font-weight:800;font-size:clamp(24px,6vw,44px);font-variant-numeric:tabular-nums}
+  .dv-spd{flex:1;text-align:center;font-family:var(--mono);color:var(--muted);font-size:16px}
+  .dv-spd b{color:var(--ink);font-size:clamp(24px,6vw,44px)}
+  .dv-dist{flex:1;text-align:center;font-family:var(--mono);color:var(--muted);font-size:16px}
+  .dv-dist b{color:var(--ink);font-size:clamp(24px,6vw,44px);font-variant-numeric:tabular-nums}
   .dv-exit{background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:10px;width:46px;height:46px;font-size:18px}
+  .dv-gps{font-size:18px;color:var(--muted);align-self:center;padding:0 4px}
+  @keyframes techflash{0%,49%{color:var(--red)}50%,100%{color:#ffd0d0}}
+  .techover{animation:techflash .55s infinite}
   .dv-main{flex:1;display:flex;gap:14px;align-items:center;justify-content:center}
   .dv-cell{flex:1;text-align:center}
   .dv-big{font-family:var(--mono);font-weight:800;font-variant-numeric:tabular-nums;line-height:1;font-size:clamp(46px,15vw,140px)}
@@ -98,9 +103,21 @@
   @media (orientation:portrait){ .dv-main{flex-direction:column;gap:8px} }
   .drivebtn{width:100%;margin-bottom:12px;background:#2A2E37;color:var(--ink);border:1px solid var(--line);
             padding:14px;border-radius:12px;font-weight:800;font-size:15px}
+  .dv-flash{position:absolute;top:14px;left:50%;transform:translateX(-50%) translateY(-8px);
+    background:rgba(53,224,107,.16);border:1px solid var(--green);color:var(--green);font-family:var(--mono);
+    font-weight:800;font-size:clamp(18px,4vw,32px);padding:10px 24px;border-radius:14px;opacity:0;
+    pointer-events:none;transition:opacity .15s,transform .15s;z-index:5}
+  .dv-flash.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #mainflash{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:rgba(53,224,107,.16);
+    border:1px solid var(--green);color:var(--green);font-family:var(--mono);font-weight:800;font-size:14px;
+    padding:8px 16px;border-radius:12px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:900}
 </style>
 
-<p class="eyebrow">Sandhills Open Road &middot; GPS Pace</p>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+  <span class="eyebrow" style="margin:0">Sandhills Open Road &middot; GPS Pace</span>
+  <span id="gpsind" style="font-size:11px;font-weight:800;font-family:var(--mono);color:var(--muted)">&#9679; GPS</span>
+</div>
+<div id="mainflash"></div>
 
 <div class="card"><div class="classbar">
   <span style="color:var(--muted)">Class</span><select id="cls"></select><span class="tot" id="totperfect">—</span>
@@ -110,6 +127,7 @@
   <button data-leg="0" aria-pressed="true">Leg 1 (up)</button>
   <button data-leg="1" aria-pressed="false">Leg 2 (return)</button>
 </div>
+<div id="recnote" style="display:none;background:rgba(51,214,201,.12);border:1px solid rgba(51,214,201,.4);color:var(--teal);border-radius:10px;padding:8px 12px;font-size:12px;margin-bottom:12px"></div>
 
 <div class="card">
   <div class="clock" id="clock">0:00.00</div>
@@ -145,6 +163,7 @@
   <button class="btn reset" id="reset">Reset</button>
 </div>
 <button class="drivebtn" id="drivebtn">&#9654;&nbsp; DRIVE MODE (big screen)</button>
+<button class="drivebtn" id="logbtn" style="background:#22252C">&#8681;&nbsp; SAVE / SHARE LOG</button>
 
 <div class="card"><h2 id="sumhead">Leg summary</h2><div id="sumbody"></div></div>
 
@@ -173,9 +192,12 @@ each point's distance + coordinates. On race day, turn on <b>GPS auto-split</b> 
 position as you pass it, drift-free. GPS needs Location permission — open in Safari if blocked here.</p>
 
 <div id="drive" class="dv-overlay">
+  <div class="dv-flash" id="dv-flash"></div>
   <div class="dv-top">
+    <span class="dv-gps" id="dv-gps">&#9679;</span>
     <span class="dv-clock" id="dv-clock">0:00.00</span>
-    <span class="dv-spd"><b id="dv-spd">0</b>&nbsp;mph</span>
+    <span class="dv-dist"><b id="dv-dist">0.00</b>&nbsp;<small>mi</small></span>
+    <span class="dv-spd"><b id="dv-spd">0</b>&nbsp;<small>mph</small></span>
     <button class="dv-exit" id="dv-exit">&#10005;</button>
   </div>
   <div class="dv-main">
@@ -192,8 +214,9 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
 <script>
   const $=id=>document.getElementById(id);
   const PERFECT={60:[1722.0,1596.0],80:[1291.5,1197.0],90:[1148.0,1064.0],95:[1087.579,1008.0],100:[1033.2,957.6],
-    105:[984.0,912.0],110:[939.273,870.545],115:[898.435,832.696],120:[861.0,798.0]};
-  const CLASSES=[60,80,90,95,100,105,110,115,120];
+    105:[984.0,912.0],110:[939.273,870.545],115:[898.435,832.696],120:[861.0,798.0],125:[826.56,766.08]};
+  const CLASSES=[60,80,90,95,100,105,110,115,120,125];
+  const TECH={60:65,80:120,90:120,95:120,100:140,105:140,110:145,115:145,120:145,125:150};
 
   let selClass=120, activeLeg=0;
   const legs=[
@@ -208,6 +231,9 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   let watchId=null,lastFix=null,distMi=0,instSpd=0,gpsMsg="GPS off",curLat=null,curLon=null,curAcc=null;
   let calibrating=false,captures=[],selCalLeg=0;
   let driveOn=false;
+  let recovered=false;
+  let lastRunSave=0;
+  let approachIdx=-1,approachMin=Infinity,approachMinE=null,flashT=null,flashT2=null,lastFixAt=0;
   const elapsed=()=>running?(Date.now()-startTs)/1000:stoppedElapsed;
 
   function fmt(sec){if(sec==null||!isFinite(sec))return "—";const m=Math.floor(sec/60),s=sec-m*60;return m+":"+s.toFixed(2).padStart(5,"0");}
@@ -227,8 +253,9 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
 
   function enableGPS(){
     if(!navigator.geolocation){gpsMsg="No geolocation API";return;}
+    if(watchId!=null){try{navigator.geolocation.clearWatch(watchId);}catch(e){}watchId=null;}
     try{watchId=navigator.geolocation.watchPosition(pos=>{gpsMsg="GPS ready";const c=pos.coords;
-      curLat=c.latitude;curLon=c.longitude;curAcc=c.accuracy;
+      lastFixAt=Date.now();curLat=c.latitude;curLon=c.longitude;curAcc=c.accuracy;
       if(c.speed!=null&&c.speed>=0)instSpd=c.speed*2.2369363;
       if(running||calibrating){const f={lat:c.latitude,lon:c.longitude};if(lastFix){const m=haversine(lastFix,f);if(isFinite(m)&&m>=0&&m<1500)distMi+=m/1609.344;}lastFix=f;}
       if(calibrating&&!captures.some(x=>x.kind==='start')){captures.unshift({label:'Start',dist:0,lat:curLat,lon:curLon,kind:'start'});renderCaptures();refreshCalBtns();}
@@ -239,11 +266,51 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   }
   const snap=mi=>{distMi=mi;lastFix=null;};
 
+  function gpsState(){
+    if(gpsMsg!=="GPS ready") return {c:"var(--red)",t:"OFF"};
+    if(Date.now()-lastFixAt<3000) return {c:"var(--green)",t:"LIVE"};
+    return {c:"var(--amber)",t:"…"};
+  }
+  function updateGpsIndicators(){
+    const st=gpsState();
+    const mg=$("gpsind"); if(mg){mg.style.color=st.c;mg.textContent="\u25CF GPS "+st.t;}
+    const dg=$("dv-gps"); if(dg){dg.style.color=st.c;}
+  }
+  function flashCapture(label){
+    const dv=$("dv-flash");
+    if(dv){dv.textContent="\u2713 "+label;dv.classList.add("show");clearTimeout(flashT);flashT=setTimeout(()=>dv.classList.remove("show"),1800);}
+    const mf=$("mainflash");
+    if(mf){mf.textContent="\u2713 MARKED "+label;mf.style.opacity="1";clearTimeout(flashT2);flashT2=setTimeout(()=>mf.style.opacity="0",1800);}
+  }
+  function splitAt(i,atE){
+    if(startTs===null&&!running)return;
+    const L=leg();if(i<0||i>=L.wps.length||L.wps[i].a.trim())return;
+    const e=(atE!=null)?atE:elapsed();
+    L.wps[i].a=fmt(e);const d=parseFloat(L.wps[i].d);if(isFinite(d))snap(d);
+    const inp=$("wps").querySelector('.act[data-i="'+i+'"]');if(inp)inp.value=L.wps[i].a;
+    updateCard(i);updateSplit();saveRun();flashCapture(L.wps[i].label);
+  }
+  // Fire at CLOSEST APPROACH to the marker (most accurate), not on entry to the radius.
   function proximityCheck(){
-    const L=leg();const i=L.wps.findIndex(w=>!w.a.trim());if(i<0)return;
-    const w=L.wps[i];if(w.la==null||w.lo==null||curLat==null)return;
-    const spdMps=instSpd/2.2369363,th=Math.max(40,spdMps*1.6);
-    if(haversine({lat:curLat,lon:curLon},{lat:w.la,lon:w.lo})<=th)splitNext();
+    if(curLat==null)return;
+    const L=leg();let best=-1,bestD=Infinity;
+    for(let i=0;i<L.wps.length;i++){const w=L.wps[i];
+      if(w.a.trim()||w.la==null||w.lo==null)continue;
+      const dd=haversine({lat:curLat,lon:curLon},{lat:w.la,lon:w.lo});
+      if(dd<bestD){bestD=dd;best=i;}}
+    if(best<0){approachIdx=-1;approachMin=Infinity;approachMinE=null;return;}
+    const spdMps=instSpd/2.2369363;
+    const capture=Math.max(40,spdMps*1.6);   // must pass at least this close to count
+    const arm=Math.max(80,spdMps*3);          // begin tracking approach here
+    if(best!==approachIdx){approachIdx=best;approachMin=Infinity;approachMinE=null;}
+    if(bestD<=arm){
+      if(bestD<approachMin){approachMin=bestD;approachMinE=elapsed();}
+      else if(bestD>approachMin+8 && approachMin<=capture){
+        // distance is increasing again -> we just passed abeam; stamp the closest-approach time
+        splitAt(best,approachMinE);
+        approachIdx=-1;approachMin=Infinity;approachMinE=null;
+      }
+    }
   }
 
   // timer
@@ -258,15 +325,15 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     if(startTs===null&&!running)return;const L=leg();const i=L.wps.findIndex(w=>!w.a.trim());if(i<0)return;
     L.wps[i].a=fmt(elapsed());const d=parseFloat(L.wps[i].d);if(isFinite(d))snap(d);
     const inp=$("wps").querySelector('.act[data-i="'+i+'"]');if(inp)inp.value=L.wps[i].a;
-    updateCard(i);updateSplit();
+    updateCard(i);updateSplit();saveRun();flashCapture(L.wps[i].label);
   }
   function finishLeg(){
-    leg().rec=elapsed();running=false;startTs=null;stoppedElapsed=0;distMi=0;instSpd=0;lastFix=null;armedStart=null;autoFinished=false;
+    leg().rec=elapsed();saveRun();running=false;startTs=null;stoppedElapsed=0;distMi=0;instSpd=0;lastFix=null;armedStart=null;autoFinished=false;
     if(activeLeg===0)setLeg(1);else{refreshButtons();paintSummary();paintDash();}
   }
   function resetAll(){
     running=false;startTs=null;stoppedElapsed=0;distMi=0;instSpd=0;lastFix=null;armedStart=null;autoFinished=false;
-    legs.forEach(L=>{L.rec=null;L.wps.forEach(w=>w.a="");});setLeg(0);
+    legs.forEach(L=>{L.rec=null;L.wps.forEach(w=>w.a="");});clearRun();if($("recnote"))$("recnote").style.display="none";setLeg(0);
   }
   function updateSplit(){const i=leg().wps.findIndex(w=>!w.a.trim());$("split").disabled=((startTs===null&&!running)||i<0);}
   function refreshButtons(){
@@ -283,6 +350,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     if(armedStart!=null&&Date.now()>=armedStart)startAt(armedStart);
     if(running&&autoFinishOn){const ld=legDist(leg());if(ld>0&&distMi>=ld){stopClock();autoFinished=true;refreshButtons();}}
     if(running||armedStart!=null)paintDash();
+    updateGpsIndicators();
     if(driveOn)paintDrive();
   },50);
 
@@ -299,7 +367,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     let hand=(ok&&hold&&hold>0&&e>0)?(d/hold)*3600-e:null;
     const h=$("hand");if(hand!=null){h.textContent=(hand>=0?"+":"−")+Math.abs(hand).toFixed(1)+"s";h.style.color=hand>=0?"var(--amber)":"var(--cyan)";}else{h.textContent="—";h.style.color="var(--ink)";}
     let req=null;const p=perfectSec(L),dist=legDist(L);if(p&&dist){const remD=dist-d,remT=p-e;if(remD>0&&remT>0)req=remD/(remT/3600);}
-    $("req").textContent=req!=null?req.toFixed(1):"—";$("spd").textContent=instSpd?instSpd.toFixed(0):"0";
+    $("req").textContent=req!=null?req.toFixed(1):"—";$("spd").textContent=instSpd?instSpd.toFixed(0):"0";{const t=TECH[selClass];$("spd").classList.toggle("techover",t!=null&&instSpd>t);}
     const tl=$("totline");
     if(activeLeg===1&&legs[0].rec!=null&&perfectSec(legs[0])&&hold&&hold>0&&e>0){const bank=perfectSec(legs[0])-legs[0].rec,tot=bank+((d/hold)*3600-e);
       tl.textContent="TOTAL in hand: "+(tot>=0?"+":"−")+Math.abs(tot).toFixed(1)+"s  (Leg 1 "+(bank>=0?"+":"−")+Math.abs(bank).toFixed(1)+"s)";tl.style.color=tot>=0?"var(--amber)":"var(--cyan)";}else tl.textContent="";
@@ -317,6 +385,8 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     if(armedStart!=null){$("dv-clock").textContent="ARM "+Math.max(0,(armedStart-Date.now())/1000).toFixed(1)+"s";$("dv-clock").style.color="var(--amber)";}
     else{$("dv-clock").textContent=fmt(e);$("dv-clock").style.color=running?"var(--green)":"var(--ink)";}
     $("dv-spd").textContent=instSpd?instSpd.toFixed(0):"0";
+    {const t=TECH[selClass];$("dv-spd").classList.toggle("techover",t!=null&&instSpd>t);}
+    {const rem=Math.max(0,legDist(L)-distMi);$("dv-dist").textContent=(isFinite(rem)?rem:0).toFixed(2);}
     let mAvg=(d>0&&e>0)?d/(e/3600):null;
     const ok=(mAvg==null)||(mAvg<=250);
     if(!ok)mAvg=null;
@@ -375,7 +445,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
       +'<span class="dist-wrap"><input class="txt dw" data-i="'+i+'" data-k="d" inputmode="decimal" value="'+w.d+'"><em>mi</em></span><button class="wpdel" data-i="'+i+'">\u2715</button></div>'
       +'<div class="wp-mid"><span class="pair">Tgt <b class="tt">—</b></span><span class="pair">Act <input class="txt act" data-i="'+i+'" data-k="a" inputmode="text" placeholder="mm:ss.ss" value="'+w.a+'"></span></div>'
       +'<div class="wp-diff"></div></div>').join("");
-    $("wps").querySelectorAll("input").forEach(inp=>inp.addEventListener("input",e=>{const i=+e.target.dataset.i,k=e.target.dataset.k;leg().wps[i][k]=e.target.value;updateCard(i);updateSplit();}));
+    $("wps").querySelectorAll("input").forEach(inp=>inp.addEventListener("input",e=>{const i=+e.target.dataset.i,k=e.target.dataset.k;leg().wps[i][k]=e.target.value;updateCard(i);updateSplit();saveRun();}));
     $("wps").querySelectorAll(".wpdel").forEach(b=>b.addEventListener("click",e=>{const i=+e.currentTarget.dataset.i;leg().wps.splice(i,1);renderWaypoints();updateSplit();saveState();}));
     L.wps.forEach((_,i)=>updateCard(i));
   }
@@ -439,7 +509,55 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     }});
   }catch(e){}}
 
+  // ---- run recovery (survives a battery death / reload) + log export
+  const RUNKEY="sandhills_run_v1";
+  function saveRun(){try{
+    localStorage.setItem(RUNKEY,JSON.stringify({activeLeg,elapsed:elapsed(),running,
+      legs:legs.map(L=>({rec:L.rec,wa:L.wps.map(w=>w.a)}))}));
+  }catch(e){}}
+  function loadRun(){try{
+    const s=localStorage.getItem(RUNKEY); if(!s) return false;
+    const o=JSON.parse(s); let any=false;
+    if(Array.isArray(o.legs)) o.legs.forEach((RL,i)=>{ if(i<legs.length){
+      if(RL.rec!=null){legs[i].rec=RL.rec;any=true;}
+      if(Array.isArray(RL.wa)) RL.wa.forEach((a,k)=>{ if(k<legs[i].wps.length&&a){legs[i].wps[k].a=a;any=true;} });
+    }});
+    if(typeof o.activeLeg==='number') activeLeg=o.activeLeg;
+    if(typeof o.elapsed==='number'&&o.elapsed>0){stoppedElapsed=o.elapsed;running=false;startTs=null;any=true;}
+    return any;
+  }catch(e){return false;}}
+  function clearRun(){try{localStorage.removeItem(RUNKEY);}catch(e){}}
+  function buildLog(){
+    const lines=[];
+    lines.push("SANDHILLS PACE — "+new Date().toLocaleString());
+    lines.push("Class "+(selClass===60?"60 (dry)":selClass)+"   Total perfect "+(totalPerfect()!=null?fmt3(totalPerfect()):"—"));
+    lines.push("");
+    legs.forEach(L=>{
+      const hold=holdSpeed(L),p=perfectSec(L);
+      lines.push(L.name+"  perfect "+L.perfect+"  dist "+L.dist+"mi  hold "+(hold?hold.toFixed(2):"—"));
+      if(L.rec!=null){const df=p!=null?p-L.rec:null;
+        lines.push("  ACTUAL "+fmt(L.rec)+(df!=null?("   "+(df>=0?"+":"−")+Math.abs(df).toFixed(2)+"s "+(df>=0?"FAST":"SLOW")):""));}
+      L.wps.forEach(w=>{const d=parseFloat(w.d),t=(hold>0&&d>0)?fmt(d/hold*3600):"—",aSec=parseClock(w.a);
+        let diff="";if(hold>0&&d>0&&aSec!=null){const df=d/hold*3600-aSec;diff="  "+(df>=0?"+":"−")+Math.abs(df).toFixed(2)+"s";}
+        lines.push("   "+(""+w.label).padEnd(10)+(""+w.d).padStart(6)+"mi  tgt "+t+"  act "+(w.a||"—")+diff);});
+      lines.push("");
+    });
+    if(legs[0].rec!=null&&legs[1].rec!=null&&totalPerfect()!=null){
+      const tot=legs[0].rec+legs[1].rec,td=totalPerfect()-tot,d1=legDist(legs[0]),d2=legDist(legs[1]);
+      lines.push("TOTAL ACTUAL "+fmt(tot)+"   vs perfect "+(td>=0?"+":"−")+Math.abs(td).toFixed(2)+"s");
+      if(d1&&d2&&tot>0)lines.push("Overall avg "+((d1+d2)/(tot/3600)).toFixed(2)+" mph");
+    }
+    return lines.join("\n");
+  }
+  function shareLog(){
+    const txt=buildLog();
+    if(navigator.share){navigator.share({title:"Sandhills Pace log",text:txt}).catch(()=>{});}
+    else if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>alert("Log copied to clipboard")).catch(()=>window.prompt("Copy your log:",txt));}
+    else{window.prompt("Copy your log:",txt);}
+  }
+
   loadState();
+  recovered=loadRun();
   CLASSES.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=(c===60?"60 dry":c);if(c===selClass)o.selected=true;$("cls").appendChild(o);});
   $("cls").addEventListener("change",e=>applyClass(+e.target.value));
   $("legtab").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setLeg(+b.dataset.leg);});
@@ -447,7 +565,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   $("perfect").addEventListener("input",e=>{leg().perfect=e.target.value;renderWaypoints();paintSummary();paintDash();});
   $("dist").addEventListener("input",e=>{leg().dist=e.target.value;renderWaypoints();paintSummary();paintDash();});
   $("startstop").onclick=primaryAction;$("split").onclick=splitNext;$("fin").onclick=finishLeg;$("reset").onclick=resetAll;$("gpsbtn").onclick=enableGPS;$("savecal").onclick=saveCal;
-  $("drivebtn").onclick=enterDrive;$("dv-exit").onclick=exitDrive;
+  $("drivebtn").onclick=enterDrive;$("dv-exit").onclick=exitDrive;$("logbtn").onclick=shareLog;
   $("dv-ss").onclick=()=>{primaryAction();paintDrive();};$("dv-split").onclick=()=>{splitNext();paintDrive();};
   $("push").onclick=()=>{if(armedStart!=null){armedStart+=treeIv*1000;paintDash();}};
   $("addwp").onclick=()=>{leg().wps.push({label:"WP "+(leg().wps.length+1),d:"",a:"",la:null,lo:null});renderWaypoints();};
@@ -463,5 +581,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   document.addEventListener('input', saveState);
   document.addEventListener('change', saveState);
 
-  setLeg(0);refreshButtons();refreshCalBtns();renderCaptures();
+  setLeg(activeLeg);refreshButtons();refreshCalBtns();renderCaptures();
+  if(recovered){$("recnote").textContent="↺ Recovered last run — tap Reset to start fresh";$("recnote").style.display="block";}
+  enableGPS();
 </script>
