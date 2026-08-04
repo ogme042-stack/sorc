@@ -274,6 +274,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     else{b.textContent="START";b.className="btn start";}
     $("push").style.display=(autoStartOn&&armedStart!=null)?"block":"none";$("push").textContent="PUSH START +"+treeIv+"s";
     const f=$("fin");f.className="btn fin"+(autoFinished?" ready":"");f.textContent=activeLeg===0?"FINISH LEG 1 →":"FINISH LEG 2";
+    updateSplit();
   }
 
   setInterval(()=>{
@@ -288,9 +289,12 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     const ck=$("clock");
     if(armedStart!=null){const rem=Math.max(0,(armedStart-Date.now())/1000);ck.textContent="ARM "+rem.toFixed(1)+"s";ck.className="clock armed";$("armat").textContent="starts at "+wall(armedStart);}
     else{ck.textContent=fmt(e);ck.className="clock"+(running?" run":"");$("armat").textContent="";}
-    const mAvg=(d>0&&e>0)?d/(e/3600):null;$("mavg").textContent=mAvg!=null?mAvg.toFixed(2):"—";
+    let mAvg=(d>0&&e>0)?d/(e/3600):null;
+    const ok=(mAvg==null)||(mAvg<=250);            // ignore impossible speeds from a mistimed split
+    if(!ok)mAvg=null;
+    $("mavg").textContent=mAvg!=null?mAvg.toFixed(2):"—";
     if(mAvg!=null&&hold){const dl=mAvg-hold,el=$("delta");el.textContent=(dl>=0?"+":"−")+Math.abs(dl).toFixed(2)+" vs hold "+hold.toFixed(2);el.style.color=dl>=0?"var(--amber)":"var(--cyan)";}else $("delta").textContent="";
-    let hand=null;if(hold&&hold>0&&e>0)hand=(d/hold)*3600-e;
+    let hand=(ok&&hold&&hold>0&&e>0)?(d/hold)*3600-e:null;
     const h=$("hand");if(hand!=null){h.textContent=(hand>=0?"+":"−")+Math.abs(hand).toFixed(1)+"s";h.style.color=hand>=0?"var(--amber)":"var(--cyan)";}else{h.textContent="—";h.style.color="var(--ink)";}
     let req=null;const p=perfectSec(L),dist=legDist(L);if(p&&dist){const remD=dist-d,remT=p-e;if(remD>0&&remT>0)req=remD/(remT/3600);}
     $("req").textContent=req!=null?req.toFixed(1):"—";$("spd").textContent=instSpd?instSpd.toFixed(0):"0";
@@ -311,10 +315,12 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     if(armedStart!=null){$("dv-clock").textContent="ARM "+Math.max(0,(armedStart-Date.now())/1000).toFixed(1)+"s";$("dv-clock").style.color="var(--amber)";}
     else{$("dv-clock").textContent=fmt(e);$("dv-clock").style.color=running?"var(--green)":"var(--ink)";}
     $("dv-spd").textContent=instSpd?instSpd.toFixed(0):"0";
-    const mAvg=(d>0&&e>0)?d/(e/3600):null;
+    let mAvg=(d>0&&e>0)?d/(e/3600):null;
+    const ok=(mAvg==null)||(mAvg<=250);
+    if(!ok)mAvg=null;
     $("dv-mavg").textContent=mAvg!=null?mAvg.toFixed(1):"—";
     $("dv-holdd").textContent=hold?("hold "+hold.toFixed(1)+(mAvg!=null?"  ("+((mAvg-hold)>=0?"+":"−")+Math.abs(mAvg-hold).toFixed(1)+")":"")):"";
-    let hand=null;if(hold&&hold>0&&e>0)hand=(d/hold)*3600-e;
+    let hand=(ok&&hold&&hold>0&&e>0)?(d/hold)*3600-e:null;
     const he=$("dv-hand"),ht=$("dv-handtag");
     if(hand!=null){const on=Math.abs(hand)<0.2,col=on?"var(--green)":(hand>0?"var(--amber)":"var(--cyan)");
       he.textContent=(hand>=0?"+":"−")+Math.abs(hand).toFixed(1)+"s";he.style.color=col;
@@ -327,6 +333,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     if(activeLeg===1&&legs[0].rec!=null&&perfectSec(legs[0])&&hold&&hold>0&&e>0){const bank=perfectSec(legs[0])-legs[0].rec,tot=bank+((d/hold)*3600-e);
       total="TOTAL "+(tot>=0?"+":"−")+Math.abs(tot).toFixed(1)+"s";}
     $("dv-total").textContent=total;$("dv-foot").textContent=foot;
+    $("dv-split").disabled=((startTs===null&&!running)||i<0);
     const b=$("dv-ss");
     if(running){b.textContent="STOP";b.className="btn stop";}
     else if(autoStartOn){armedStart==null?(b.textContent="ARM",b.className="btn start"):(b.textContent="CANCEL",b.className="btn armed");}
