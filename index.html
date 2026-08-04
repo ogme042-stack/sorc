@@ -75,6 +75,8 @@
   .wp-diff{display:flex;align-items:center;gap:9px;min-height:20px;font-family:var(--mono);font-variant-numeric:tabular-nums}
   .wp-diff .dv{font-size:16px;font-weight:700}.wp-diff .dt{font-size:10px;letter-spacing:.1em;font-weight:700}.wp-diff .da{margin-left:auto;color:var(--muted);font-size:12px}
   .addwp{background:transparent;border:1px dashed var(--line);color:var(--muted);border-radius:10px;padding:9px;width:100%;font-weight:700;font-size:13px}
+  .wpdel{background:transparent;border:none;color:var(--muted);font-size:17px;line-height:1;padding:4px 4px 4px 8px;margin-left:2px}
+  .wpdel:active{color:var(--red)}
   .foot{color:var(--muted);font-size:12px;line-height:1.5;margin:2px 2px 24px}
 
   /* Drive Mode — big landscape screen for the wheel mount */
@@ -370,10 +372,11 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     $("wps").innerHTML=L.wps.map((w,i)=>
       '<div class="wp" data-i="'+i+'"><div class="wp-top"><input class="txt lbl" data-i="'+i+'" data-k="label" value="'+w.label+'">'
       +(w.la!=null?'<span class="loc">●</span>':'')
-      +'<span class="dist-wrap"><input class="txt dw" data-i="'+i+'" data-k="d" inputmode="decimal" value="'+w.d+'"><em>mi</em></span></div>'
+      +'<span class="dist-wrap"><input class="txt dw" data-i="'+i+'" data-k="d" inputmode="decimal" value="'+w.d+'"><em>mi</em></span><button class="wpdel" data-i="'+i+'">\u2715</button></div>'
       +'<div class="wp-mid"><span class="pair">Tgt <b class="tt">—</b></span><span class="pair">Act <input class="txt act" data-i="'+i+'" data-k="a" inputmode="text" placeholder="mm:ss.ss" value="'+w.a+'"></span></div>'
       +'<div class="wp-diff"></div></div>').join("");
     $("wps").querySelectorAll("input").forEach(inp=>inp.addEventListener("input",e=>{const i=+e.target.dataset.i,k=e.target.dataset.k;leg().wps[i][k]=e.target.value;updateCard(i);updateSplit();}));
+    $("wps").querySelectorAll(".wpdel").forEach(b=>b.addEventListener("click",e=>{const i=+e.currentTarget.dataset.i;leg().wps.splice(i,1);renderWaypoints();updateSplit();saveState();}));
     L.wps.forEach((_,i)=>updateCard(i));
   }
 
