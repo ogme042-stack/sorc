@@ -76,6 +76,26 @@
   .wp-diff .dv{font-size:16px;font-weight:700}.wp-diff .dt{font-size:10px;letter-spacing:.1em;font-weight:700}.wp-diff .da{margin-left:auto;color:var(--muted);font-size:12px}
   .addwp{background:transparent;border:1px dashed var(--line);color:var(--muted);border-radius:10px;padding:9px;width:100%;font-weight:700;font-size:13px}
   .foot{color:var(--muted);font-size:12px;line-height:1.5;margin:2px 2px 24px}
+
+  /* Drive Mode — big landscape screen for the wheel mount */
+  .dv-overlay{position:fixed;inset:0;background:#0B0C0F;z-index:1000;display:none;flex-direction:column;padding:14px;gap:8px}
+  .dv-top{display:flex;align-items:center;gap:12px}
+  .dv-clock{font-family:var(--mono);font-weight:800;font-size:clamp(28px,6vw,44px);font-variant-numeric:tabular-nums}
+  .dv-spd{margin-left:auto;font-family:var(--mono);color:var(--muted);font-size:16px}
+  .dv-spd b{color:var(--ink);font-size:clamp(20px,4vw,30px)}
+  .dv-exit{background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:10px;width:46px;height:46px;font-size:18px}
+  .dv-main{flex:1;display:flex;gap:14px;align-items:center;justify-content:center}
+  .dv-cell{flex:1;text-align:center}
+  .dv-big{font-family:var(--mono);font-weight:800;font-variant-numeric:tabular-nums;line-height:1;font-size:clamp(46px,15vw,140px)}
+  .dv-big.amber{color:var(--amber)}
+  .dv-lbl{font-size:clamp(10px,2vw,14px);letter-spacing:.16em;color:var(--muted);font-weight:800;margin-top:8px}
+  .dv-sub{font-family:var(--mono);color:var(--muted);font-size:clamp(12px,2.4vw,17px);margin-top:6px;min-height:16px}
+  .dv-ctrls{display:flex;gap:10px}
+  .dv-ctrls .btn{padding:clamp(16px,3vw,24px);font-size:clamp(16px,3vw,22px)}
+  .dv-foot{text-align:center;font-family:var(--mono);color:var(--muted);font-size:clamp(11px,2vw,14px);min-height:15px}
+  @media (orientation:portrait){ .dv-main{flex-direction:column;gap:8px} }
+  .drivebtn{width:100%;margin-bottom:12px;background:#2A2E37;color:var(--ink);border:1px solid var(--line);
+            padding:14px;border-radius:12px;font-weight:800;font-size:15px}
 </style>
 
 <p class="eyebrow">Sandhills Open Road &middot; GPS Pace</p>
@@ -122,6 +142,7 @@
   <button class="btn fin" id="fin">FINISH LEG 1 →</button>
   <button class="btn reset" id="reset">Reset</button>
 </div>
+<button class="drivebtn" id="drivebtn">&#9654;&nbsp; DRIVE MODE (big screen)</button>
 
 <div class="card"><h2 id="sumhead">Leg summary</h2><div id="sumbody"></div></div>
 
@@ -149,11 +170,28 @@ at each marker, <b style="color:var(--indigo)">MARK FINISH</b> at the end, then 
 each point's distance + coordinates. On race day, turn on <b>GPS auto-split</b> and it stamps each calibrated waypoint by
 position as you pass it, drift-free. GPS needs Location permission — open in Safari if blocked here.</p>
 
+<div id="drive" class="dv-overlay">
+  <div class="dv-top">
+    <span class="dv-clock" id="dv-clock">0:00.00</span>
+    <span class="dv-spd"><b id="dv-spd">0</b>&nbsp;mph</span>
+    <button class="dv-exit" id="dv-exit">&#10005;</button>
+  </div>
+  <div class="dv-main">
+    <div class="dv-cell"><div class="dv-big amber" id="dv-mavg">&mdash;</div><div class="dv-lbl">MOVING AVG</div><div class="dv-sub" id="dv-holdd"></div></div>
+    <div class="dv-cell"><div class="dv-big" id="dv-hand">&mdash;</div><div class="dv-lbl" id="dv-handtag">TIME IN HAND</div><div class="dv-sub" id="dv-total"></div></div>
+  </div>
+  <div class="dv-ctrls">
+    <button class="btn start" id="dv-ss">START</button>
+    <button class="btn split" id="dv-split">SPLIT</button>
+  </div>
+  <div class="dv-foot" id="dv-foot"></div>
+</div>
+
 <script>
   const $=id=>document.getElementById(id);
-  const PERFECT={80:[1291.5,1197.0],90:[1148.0,1064.0],95:[1087.579,1008.0],100:[1033.2,957.6],
+  const PERFECT={60:[1722.0,1596.0],80:[1291.5,1197.0],90:[1148.0,1064.0],95:[1087.579,1008.0],100:[1033.2,957.6],
     105:[984.0,912.0],110:[939.273,870.545],115:[898.435,832.696],120:[861.0,798.0]};
-  const CLASSES=[80,90,95,100,105,110,115,120];
+  const CLASSES=[60,80,90,95,100,105,110,115,120];
 
   let selClass=120, activeLeg=0;
   const legs=[
@@ -167,6 +205,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   let autoStartOn=false,autoFinishOn=false,autoSplitOn=false,treeIv=30;
   let watchId=null,lastFix=null,distMi=0,instSpd=0,gpsMsg="GPS off",curLat=null,curLon=null,curAcc=null;
   let calibrating=false,captures=[],selCalLeg=0;
+  let driveOn=false;
   const elapsed=()=>running?(Date.now()-startTs)/1000:stoppedElapsed;
 
   function fmt(sec){if(sec==null||!isFinite(sec))return "—";const m=Math.floor(sec/60),s=sec-m*60;return m+":"+s.toFixed(2).padStart(5,"0");}
@@ -241,6 +280,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     if(armedStart!=null&&Date.now()>=armedStart)startAt(armedStart);
     if(running&&autoFinishOn){const ld=legDist(leg());if(ld>0&&distMi>=ld){stopClock();autoFinished=true;refreshButtons();}}
     if(running||armedStart!=null)paintDash();
+    if(driveOn)paintDrive();
   },50);
 
   function paintDash(){
@@ -260,6 +300,37 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     $("finflag").textContent=autoFinished?"● FINISH captured by distance — tap FINISH LEG":"";
     $("gps").innerHTML=gpsMsg+" &middot; "+d.toFixed(2)+" mi &middot; hold "+(hold?hold.toFixed(2):"—")+" mph";
     $("hold").textContent=hold?hold.toFixed(2)+" mph":"—";$("totperfect").textContent=totalPerfect()!=null?"Total "+fmt3(totalPerfect()):"—";
+  }
+
+  // ---- Drive Mode (big landscape gauge)
+  function enterDrive(){driveOn=true;$("drive").style.display="flex";paintDrive();}
+  function exitDrive(){driveOn=false;$("drive").style.display="none";}
+  function paintDrive(){
+    if(!driveOn)return;
+    const L=leg(),e=elapsed(),d=distMi,hold=holdSpeed(L);
+    if(armedStart!=null){$("dv-clock").textContent="ARM "+Math.max(0,(armedStart-Date.now())/1000).toFixed(1)+"s";$("dv-clock").style.color="var(--amber)";}
+    else{$("dv-clock").textContent=fmt(e);$("dv-clock").style.color=running?"var(--green)":"var(--ink)";}
+    $("dv-spd").textContent=instSpd?instSpd.toFixed(0):"0";
+    const mAvg=(d>0&&e>0)?d/(e/3600):null;
+    $("dv-mavg").textContent=mAvg!=null?mAvg.toFixed(1):"—";
+    $("dv-holdd").textContent=hold?("hold "+hold.toFixed(1)+(mAvg!=null?"  ("+((mAvg-hold)>=0?"+":"−")+Math.abs(mAvg-hold).toFixed(1)+")":"")):"";
+    let hand=null;if(hold&&hold>0&&e>0)hand=(d/hold)*3600-e;
+    const he=$("dv-hand"),ht=$("dv-handtag");
+    if(hand!=null){const on=Math.abs(hand)<0.2,col=on?"var(--green)":(hand>0?"var(--amber)":"var(--cyan)");
+      he.textContent=(hand>=0?"+":"−")+Math.abs(hand).toFixed(1)+"s";he.style.color=col;
+      ht.textContent=on?"ON PACE":(hand>0?"FAST":"SLOW");ht.style.color=col;}
+    else{he.textContent="—";he.style.color="var(--ink)";ht.textContent="TIME IN HAND";ht.style.color="var(--muted)";}
+    let foot="";const i=L.wps.findIndex(w=>!w.a.trim());foot+=(i>=0?("Next: "+L.wps[i].label):"all marked");
+    let req=null;const p=perfectSec(L),dist=legDist(L);if(p&&dist){const remD=dist-d,remT=p-e;if(remD>0&&remT>0)req=remD/(remT/3600);}
+    if(req!=null)foot+="   ·   req "+req.toFixed(1)+" mph";
+    let total="";
+    if(activeLeg===1&&legs[0].rec!=null&&perfectSec(legs[0])&&hold&&hold>0&&e>0){const bank=perfectSec(legs[0])-legs[0].rec,tot=bank+((d/hold)*3600-e);
+      total="TOTAL "+(tot>=0?"+":"−")+Math.abs(tot).toFixed(1)+"s";}
+    $("dv-total").textContent=total;$("dv-foot").textContent=foot;
+    const b=$("dv-ss");
+    if(running){b.textContent="STOP";b.className="btn stop";}
+    else if(autoStartOn){armedStart==null?(b.textContent="ARM",b.className="btn start"):(b.textContent="CANCEL",b.className="btn armed");}
+    else{b.textContent="START";b.className="btn start";}
   }
 
   function paintSummary(){
@@ -331,7 +402,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
 
   function syncSetup(){$("perfect").value=leg().perfect;$("dist").value=leg().dist;$("plab").textContent=leg().name+" perfect";}
   function setLeg(n){activeLeg=n;[...$("legtab").children].forEach(b=>b.setAttribute("aria-pressed",(+b.dataset.leg===n)));syncSetup();renderWaypoints();updateSplit();refreshButtons();paintSummary();paintDash();}
-  function applyClass(c){selClass=c;legs[0].perfect=fmt3(PERFECT[c][0]);legs[1].perfect=fmt3(PERFECT[c][1]);syncSetup();renderWaypoints();paintSummary();paintDash();}
+  function applyClass(c){selClass=c;legs[0].perfect=fmt3(PERFECT[c][0]);legs[1].perfect=fmt3(PERFECT[c][1]);syncSetup();renderWaypoints();paintSummary();paintDash();saveState();}
 
   // ---- persistence (survives closing the home-screen app)
   const LSKEY="sandhills_pace_v1";
@@ -359,13 +430,15 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   }catch(e){}}
 
   loadState();
-  CLASSES.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;if(c===selClass)o.selected=true;$("cls").appendChild(o);});
+  CLASSES.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=(c===60?"60 dry":c);if(c===selClass)o.selected=true;$("cls").appendChild(o);});
   $("cls").addEventListener("change",e=>applyClass(+e.target.value));
   $("legtab").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setLeg(+b.dataset.leg);});
   $("callegtab").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;selCalLeg=+b.dataset.cl;[...$("callegtab").children].forEach(x=>x.setAttribute("aria-pressed",x===b));});
   $("perfect").addEventListener("input",e=>{leg().perfect=e.target.value;renderWaypoints();paintSummary();paintDash();});
   $("dist").addEventListener("input",e=>{leg().dist=e.target.value;renderWaypoints();paintSummary();paintDash();});
   $("startstop").onclick=primaryAction;$("split").onclick=splitNext;$("fin").onclick=finishLeg;$("reset").onclick=resetAll;$("gpsbtn").onclick=enableGPS;$("savecal").onclick=saveCal;
+  $("drivebtn").onclick=enterDrive;$("dv-exit").onclick=exitDrive;
+  $("dv-ss").onclick=()=>{primaryAction();paintDrive();};$("dv-split").onclick=()=>{splitNext();paintDrive();};
   $("push").onclick=()=>{if(armedStart!=null){armedStart+=treeIv*1000;paintDash();}};
   $("addwp").onclick=()=>{leg().wps.push({label:"WP "+(leg().wps.length+1),d:"",a:"",la:null,lo:null});renderWaypoints();};
   $("autostart").addEventListener("change",e=>{autoStartOn=e.target.checked;$("ivwrap").style.display=autoStartOn?"flex":"none";if(!autoStartOn)armedStart=null;refreshButtons();paintDash();});
