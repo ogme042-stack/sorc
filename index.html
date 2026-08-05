@@ -239,7 +239,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   let startTs=null,stoppedElapsed=0,running=false,armedStart=null,autoFinished=false;
   let autoStartOn=false,autoFinishOn=false,autoSplitOn=false,treeIv=60;
   let startTrim=0;
-  let watchId=null,lastFix=null,distMi=0,instSpd=0,gpsMsg="GPS off",curLat=null,curLon=null,curAcc=null,lastIntegT=0;
+  let watchId=null,lastFix=null,distMi=0,instSpd=0,gpsMsg="GPS off",curLat=null,curLon=null,curAcc=null,lastIntegT=0,lastLoopIntegT=Date.now();
   let calibrating=false,captures=[],selCalLeg=0;
   let driveOn=false;
   let recovered=false;
@@ -286,7 +286,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     try{watchId=navigator.geolocation.watchPosition(pos=>{gpsMsg="GPS ready";const c=pos.coords;
       lastFixAt=Date.now();curLat=c.latitude;curLon=c.longitude;curAcc=c.accuracy;
       if(c.speed!=null&&c.speed>=0)instSpd=c.speed*2.2369363;
-      if(running||calibrating){const now=Date.now(),dt=(now-lastIntegT)/1000,sp=(c.speed!=null&&c.speed>=0)?c.speed:0;if(dt>0&&dt<10)distMi+=sp*dt/1609.344;lastIntegT=now;}
+      // distance is integrated continuously in the 20Hz loop from instSpd (see setInterval)
       if(calibrating&&!captures.some(x=>x.kind==='start')){captures.unshift({label:'Start',dist:0,lat:curLat,lon:curLon,kind:'start'});renderCaptures();refreshCalBtns();}
       if(running&&autoSplitOn)proximityCheck();
       if(calibrating)paintCal();
@@ -376,6 +376,8 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   }
 
   setInterval(()=>{
+    const _n=Date.now(),ldt=(_n-lastLoopIntegT)/1000;lastLoopIntegT=_n;
+    if((running||calibrating)&&ldt>0&&ldt<1)distMi+=instSpd*ldt/3600;
     if(armedStart!=null&&Date.now()>=armedStart)startAt(armedStart);
     if(running&&autoFinishOn){const ld=legDist(leg());if(ld>0&&distMi>=ld){stopClock();autoFinished=true;refreshButtons();}}
     if(running||armedStart!=null)paintDash();
@@ -413,7 +415,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     const L=leg(),e=elapsed(),d=distMi,hold=holdSpeed(L),cts=curTargetSpeed(L,d),tgt=targetSec(L,d);
     if(armedStart!=null){$("dv-clock").textContent="ARM "+Math.max(0,(armedStart-Date.now())/1000).toFixed(1)+"s";$("dv-clock").style.color="var(--amber)";}
     else{$("dv-clock").textContent=fmt(e);$("dv-clock").style.color=running?"var(--green)":"var(--ink)";}
-    $("dv-spd").textContent=instSpd?instSpd.toFixed(0):"0";
+    $("dv-spd").textContent=instSpd?instSpd.toFixed(2):"0.00";
     {const t=TECH[selClass],mn=MINSP[selClass]||0,on=instSpd>0.5;$("dv-spd").classList.toggle("techover",t!=null&&instSpd>t);$("dv-spd").classList.toggle("undermin",on&&mn>0&&instSpd<mn);}
     {const rem=Math.max(0,legDist(L)-distMi);$("dv-dist").textContent=(isFinite(rem)?rem:0).toFixed(2);}
     let mAvg=(d>0&&e>0)?d/(e/3600):null;
