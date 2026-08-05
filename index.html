@@ -239,7 +239,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   let startTs=null,stoppedElapsed=0,running=false,armedStart=null,autoFinished=false;
   let autoStartOn=false,autoFinishOn=false,autoSplitOn=false,treeIv=60;
   let startTrim=0;
-  let watchId=null,lastFix=null,distMi=0,instSpd=0,gpsMsg="GPS off",curLat=null,curLon=null,curAcc=null;
+  let watchId=null,lastFix=null,distMi=0,instSpd=0,gpsMsg="GPS off",curLat=null,curLon=null,curAcc=null,lastIntegT=0;
   let calibrating=false,captures=[],selCalLeg=0;
   let driveOn=false;
   let recovered=false;
@@ -286,14 +286,14 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     try{watchId=navigator.geolocation.watchPosition(pos=>{gpsMsg="GPS ready";const c=pos.coords;
       lastFixAt=Date.now();curLat=c.latitude;curLon=c.longitude;curAcc=c.accuracy;
       if(c.speed!=null&&c.speed>=0)instSpd=c.speed*2.2369363;
-      if(running||calibrating){const f={lat:c.latitude,lon:c.longitude};if(lastFix){const m=haversine(lastFix,f);if(isFinite(m)&&m>=0&&m<1500)distMi+=m/1609.344;}lastFix=f;}
+      if(running||calibrating){const now=Date.now(),dt=(now-lastIntegT)/1000,sp=(c.speed!=null&&c.speed>=0)?c.speed:0;if(dt>0&&dt<10)distMi+=sp*dt/1609.344;lastIntegT=now;}
       if(calibrating&&!captures.some(x=>x.kind==='start')){captures.unshift({label:'Start',dist:0,lat:curLat,lon:curLon,kind:'start'});renderCaptures();refreshCalBtns();}
       if(running&&autoSplitOn)proximityCheck();
       if(calibrating)paintCal();
     },err=>{gpsMsg="GPS blocked — open in Safari";},{enableHighAccuracy:true,maximumAge:0,timeout:10000});
     }catch(e){gpsMsg="GPS unavailable";}
   }
-  const snap=mi=>{distMi=mi;lastFix=null;};
+  const snap=mi=>{distMi=mi;lastFix=null;lastIntegT=Date.now();};
 
   function gpsState(){
     if(gpsMsg!=="GPS ready") return {c:"var(--red)",t:"OFF"};
@@ -344,9 +344,9 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
 
   // timer
   function nextBoundary(iv){const now=Date.now()/1000;return (Math.floor(now/iv)+1)*iv*1000;}
-  function startAt(ms){startTs=ms;stoppedElapsed=0;running=true;armedStart=null;lastFix=null;refreshButtons();}
+  function startAt(ms){startTs=ms;stoppedElapsed=0;running=true;armedStart=null;lastFix=null;lastIntegT=Date.now();refreshButtons();}
   function stopClock(){if(running){stoppedElapsed=elapsed();running=false;refreshButtons();}}
-  function manualStart(){startTs=Date.now()-stoppedElapsed*1000;running=true;lastFix=null;refreshButtons();}
+  function manualStart(){startTs=Date.now()-stoppedElapsed*1000;running=true;lastFix=null;lastIntegT=Date.now();refreshButtons();}
   function arm(){armedStart=nextBoundary(treeIv)+startTrim*1000;autoFinished=false;refreshButtons();}
   function cancelArm(){armedStart=null;refreshButtons();}
   function primaryAction(){if(running)stopClock();else if(autoStartOn){armedStart==null?arm():cancelArm();}else manualStart();paintDash();}
@@ -496,7 +496,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
       || '<div style="color:var(--muted);font-size:13px">Tap START at the line, then MARK each marker. MARK FINISH at the end.</div>';
     $("savecal").disabled=!captures.some(x=>x.kind==='finish');
   }
-  function startCal(){captures=[];calibrating=true;distMi=0;lastFix=null;if(!watchId)enableGPS();refreshCalBtns();renderCaptures();paintCal();}
+  function startCal(){captures=[];calibrating=true;distMi=0;lastFix=null;lastIntegT=Date.now();if(!watchId)enableGPS();refreshCalBtns();renderCaptures();paintCal();}
   function markPoint(kind){if(!calibrating||curLat==null)return;const n=captures.filter(x=>x.kind==='wp').length+1;
     captures.push({label:kind==='finish'?'Finish':'WP '+n,dist:distMi,lat:curLat,lon:curLon,kind:kind});
     if(kind==='finish'){calibrating=false;refreshCalBtns();}renderCaptures();}
