@@ -103,11 +103,10 @@
   @media (orientation:portrait){ .dv-main{flex-direction:column;gap:8px} }
   .drivebtn{width:100%;margin-bottom:12px;background:#2A2E37;color:var(--ink);border:1px solid var(--line);
             padding:14px;border-radius:12px;font-weight:800;font-size:15px}
-  .dv-flash{position:absolute;top:14px;left:50%;transform:translateX(-50%) translateY(-8px);
-    background:rgba(53,224,107,.16);border:1px solid var(--green);color:var(--green);font-family:var(--mono);
-    font-weight:800;font-size:clamp(18px,4vw,32px);padding:10px 24px;border-radius:14px;opacity:0;
-    pointer-events:none;transition:opacity .15s,transform .15s;z-index:5}
-  .dv-flash.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .dv-flash{display:none;align-self:center;background:rgba(53,224,107,.16);border:1px solid var(--green);
+    color:var(--green);font-family:var(--mono);font-weight:800;font-size:clamp(18px,4vw,30px);
+    padding:8px 22px;border-radius:14px;pointer-events:none}
+  .dv-flash.show{display:block}
   #mainflash{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:rgba(53,224,107,.16);
     border:1px solid var(--green);color:var(--green);font-family:var(--mono);font-weight:800;font-size:14px;
     padding:8px 16px;border-radius:12px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:900}
@@ -192,7 +191,6 @@ each point's distance + coordinates. On race day, turn on <b>GPS auto-split</b> 
 position as you pass it, drift-free. GPS needs Location permission — open in Safari if blocked here.</p>
 
 <div id="drive" class="dv-overlay">
-  <div class="dv-flash" id="dv-flash"></div>
   <div class="dv-top">
     <span class="dv-gps" id="dv-gps">&#9679;</span>
     <span class="dv-clock" id="dv-clock">0:00.00</span>
@@ -200,6 +198,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     <span class="dv-spd"><b id="dv-spd">0</b>&nbsp;<small>mph</small></span>
     <button class="dv-exit" id="dv-exit">&#10005;</button>
   </div>
+  <div class="dv-flash" id="dv-flash"></div>
   <div class="dv-main">
     <div class="dv-cell"><div class="dv-big amber" id="dv-mavg">&mdash;</div><div class="dv-lbl">MOVING AVG</div><div class="dv-sub" id="dv-holdd"></div></div>
     <div class="dv-cell"><div class="dv-big" id="dv-hand">&mdash;</div><div class="dv-lbl" id="dv-handtag">TIME IN HAND</div><div class="dv-sub" id="dv-total"></div></div>
