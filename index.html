@@ -143,9 +143,9 @@
 </div>
 
 <div class="card settings">
-  <label class="tog"><input type="checkbox" id="autostart"> Auto-start on <span id="ivlabel">30</span>s GPS tree</label>
+  <label class="tog"><input type="checkbox" id="autostart"> Auto-start on <span id="ivlabel">60</span>s GPS tree</label>
   <div class="seg" id="ivwrap" style="display:none">
-    <button data-iv="30" aria-pressed="true">30s</button><button data-iv="60" aria-pressed="false">60s</button>
+    <button data-iv="30" aria-pressed="false">30s</button><button data-iv="60" aria-pressed="true">60s</button>
   </div>
   <label class="tog"><input type="checkbox" id="autofinish"> Auto-finish at leg distance</label>
   <label class="tog"><input type="checkbox" id="autosplit"> GPS auto-split at calibrated waypoints</label>
@@ -226,7 +226,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   ];
 
   let startTs=null,stoppedElapsed=0,running=false,armedStart=null,autoFinished=false;
-  let autoStartOn=false,autoFinishOn=false,autoSplitOn=false,treeIv=30;
+  let autoStartOn=false,autoFinishOn=false,autoSplitOn=false,treeIv=60;
   let watchId=null,lastFix=null,distMi=0,instSpd=0,gpsMsg="GPS off",curLat=null,curLon=null,curAcc=null;
   let calibrating=false,captures=[],selCalLeg=0;
   let driveOn=false;
