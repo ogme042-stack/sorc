@@ -95,7 +95,7 @@
   .undermin{animation:underflash .55s infinite}
   .dv-main{flex:1;display:flex;gap:14px;align-items:center;justify-content:center}
   .dv-cell{flex:1;text-align:center}
-  .dv-big{font-family:var(--mono);font-weight:800;font-variant-numeric:tabular-nums;line-height:1;font-size:clamp(46px,15vw,140px)}
+  .dv-big{font-family:var(--mono);font-weight:800;font-variant-numeric:tabular-nums;line-height:1;font-size:clamp(37px,12vw,112px)}
   .dv-big.amber{color:var(--amber)}
   .dv-lbl{font-size:clamp(10px,2vw,14px);letter-spacing:.16em;color:var(--muted);font-weight:800;margin-top:8px}
   .dv-sub{font-family:var(--mono);color:var(--muted);font-size:clamp(12px,2.4vw,17px);margin-top:6px;min-height:16px}
@@ -421,12 +421,12 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     let mAvg=(d>0&&e>0)?d/(e/3600):null;
     const ok=(mAvg==null)||(mAvg<=250);
     if(!ok)mAvg=null;
-    $("dv-mavg").textContent=mAvg!=null?mAvg.toFixed(1):"—";
+    $("dv-mavg").textContent=mAvg!=null?mAvg.toFixed(2):"—";
     $("dv-holdd").textContent=cts?("hold "+cts.toFixed(1)+(mAvg!=null?"  ("+((mAvg-cts)>=0?"+":"−")+Math.abs(mAvg-cts).toFixed(1)+")":"")):"";
     let hand=(ok&&tgt!=null&&e>0)?tgt-e:null;
     const he=$("dv-hand"),ht=$("dv-handtag");
     if(hand!=null){const on=Math.abs(hand)<0.2,col=on?"var(--green)":(hand>0?"var(--amber)":"var(--cyan)");
-      he.textContent=(hand>=0?"+":"−")+Math.abs(hand).toFixed(1)+"s";he.style.color=col;
+      he.textContent=(hand>=0?"+":"−")+Math.abs(hand).toFixed(2)+"s";he.style.color=col;
       ht.textContent=on?"ON PACE":(hand>0?"FAST":"SLOW");ht.style.color=col;}
     else{he.textContent="—";he.style.color="var(--ink)";ht.textContent="TIME IN HAND";ht.style.color="var(--muted)";}
     let foot="";const i=L.wps.findIndex(w=>!w.a.trim());foot+=(i>=0?("Next: "+L.wps[i].label):"all marked");
