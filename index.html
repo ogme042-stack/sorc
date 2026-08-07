@@ -177,11 +177,12 @@
 <div class="card">
   <div class="row"><label id="plab">Leg perfect</label><input class="txt" id="perfect" inputmode="text" value="14:21.000"></div>
   <div class="row"><label>Measured distance (mi)</label><input class="txt" id="dist" inputmode="decimal" value="28.73"></div>
-  <div class="row"><label>Slow zone at (mi)</label><input class="txt" id="slowat" inputmode="decimal" placeholder="off"></div>
   <div class="row"><label>Slow to (mph)</label><input class="txt" id="slowspd" inputmode="decimal"></div>
   <div class="row" id="phaserow" style="display:none"><label>Phase-1 hold needed</label><b id="phase1" style="font-family:var(--mono);color:var(--amber)">—</b></div>
-  <div class="row"><label>Gate (ft before finish)</label><input class="txt" id="gateft" inputmode="decimal" placeholder="off"></div>
-  <div class="row" id="gaterow" style="display:none"><label>Gate: pass at</label><b id="gateinfo" style="font-family:var(--mono);color:var(--teal)">—</b></div>
+  <div class="row"><label>Gate 1 (slow to min)</label><span style="display:flex;gap:6px;align-items:center"><input class="txt" id="g0l" placeholder="name" style="width:92px"><input class="txt" id="g0f" inputmode="decimal" placeholder="ft" style="width:64px"></span></div>
+  <div class="row"><label>Gate 2</label><span style="display:flex;gap:6px;align-items:center"><input class="txt" id="g1l" placeholder="name" style="width:92px"><input class="txt" id="g1f" inputmode="decimal" placeholder="ft" style="width:64px"></span></div>
+  <div class="row"><label>Gate 3</label><span style="display:flex;gap:6px;align-items:center"><input class="txt" id="g2l" placeholder="name" style="width:92px"><input class="txt" id="g2f" inputmode="decimal" placeholder="ft" style="width:64px"></span></div>
+  <div id="gateinfo" style="display:none;flex-direction:column;gap:3px;font-family:var(--mono);color:var(--teal);font-size:12px;padding:4px 0"></div>
   <div class="row"><label>Hold speed</label><b id="hold" style="font-family:var(--mono);color:var(--amber)">—</b></div>
 </div>
 
@@ -234,9 +235,9 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
 
   let selClass=120, activeLeg=0;
   const legs=[
-    {name:"Leg 1 (up)",perfect:"14:21.000",dist:"28.73",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,slowAt:"",slowSpeed:"105",gateFt:"",
+    {name:"Leg 1 (up)",perfect:"14:21.000",dist:"28.73",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,slowAt:"",slowSpeed:"105",gates:[],
      wps:[{label:"WP 1",d:"28.00",a:"",la:null,lo:null},{label:"Finish",d:"28.73",a:"",la:null,lo:null}]},
-    {name:"Leg 2 (return)",perfect:"13:18.000",dist:"26.66",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,slowAt:"23.82",slowSpeed:"105",gateFt:"",
+    {name:"Leg 2 (return)",perfect:"13:18.000",dist:"26.66",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,slowAt:"23.82",slowSpeed:"105",gates:[{ft:"14995",label:"Rd 806"},{ft:"5280",label:""},{ft:"1296",label:"fence gate"}],
      wps:[{label:"Rd 806",d:"26.19",a:"",la:null,lo:null},{label:"WP 2",d:"26.40",a:"",la:null,lo:null},{label:"Finish",d:"26.66",a:"",la:null,lo:null}]}
   ];
 
@@ -246,7 +247,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   let watchId=null,lastFix=null,distMi=0,instSpd=0,gpsMsg="GPS off",curLat=null,curLon=null,curAcc=null,lastIntegT=0,lastLoopIntegT=Date.now();
   let calibrating=false,captures=[],selCalLeg=0;
   let driveOn=false;
-  let audioCtx=null,audioOn=true,lastBeepSec=null,gatePassed=false,finishToneDone=false;
+  let audioCtx=null,audioOn=true,lastBeepSec=null,gatesPassed=[false,false,false],finishToneDone=false;
   let recovered=false;
   let lastRunSave=0;
   let approachIdx=-1,approachMin=Infinity,approachMinE=null,flashT=null,flashT2=null,lastFixAt=0;
@@ -265,7 +266,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     return p;}
   const legDist=L=>parseFloat(L.dist);
   function holdSpeed(L){const d=legDist(L),p=effPerfect(L);return (d>0&&p>0)?d/(p/3600):null;}
-  function slowAtV(L){const v=parseFloat(L.slowAt);return (isFinite(v)&&v>0)?v:null;}
+  function slowAtV(L){const g0=gateAt(L,0);if(g0&&g0.pos>0)return g0.pos;const v=parseFloat(L.slowAt);return (isFinite(v)&&v>0)?v:null;}
   function slowSpdV(L){const v=parseFloat(L.slowSpeed);return (isFinite(v)&&v>0)?v:105;}
   function phase1Speed(L){const D=legDist(L),T=effPerfect(L),sa=slowAtV(L);
     if(sa==null||!(D>0)||!(T>0)||sa>=D)return null;
@@ -278,10 +279,10 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   function curTargetSpeed(L,x){const sa=slowAtV(L);if(sa==null||sa>=legDist(L))return holdSpeed(L);return (x<sa)?phase1Speed(L):slowSpdV(L);}
   // projected finish error at current speed: + = will cross early (too fast), - = late (too slow)
   function projMargin(L,d,e){const D=legDist(L),p=effPerfect(L);if(!(D>0)||!(p>0))return null;const rem=D-d;if(rem<=0)return p-e;if(!(instSpd>3))return null;return p-(e+rem/instSpd*3600);}
-  function gateFtV(L){const v=parseFloat(L.gateFt);return (isFinite(v)&&v>0)?v:null;}
-  function gatePos(L){const g=gateFtV(L);return g!=null?legDist(L)-g/5280:null;}
-  function gateTargetSec(L){const gp=gatePos(L);return (gp!=null&&gp>0)?targetSec(L,gp):null;}
-  function gateTTLv(L){const gt=gateTargetSec(L),p=effPerfect(L);return (gt!=null&&p>0)?p-gt:null;}
+  function gateAt(L,i){const g=(L.gates||[])[i];if(!g)return null;const ft=parseFloat(g.ft);if(!(isFinite(ft)&&ft>0))return null;return {num:i+1,ft:ft,label:(g.label||"").trim(),pos:legDist(L)-ft/5280};}
+  function gateName(g){return "Gate "+g.num+(g.label?" "+g.label:"");}
+  function gatePassSec(L,i){const g=gateAt(L,i);return (g&&g.pos>0)?targetSec(L,g.pos):null;}
+  function nextGate(L){for(let gi=0;gi<3;gi++){const g=gateAt(L,gi);if(g&&distMi<g.pos)return g;}return null;}
   function initAudio(){try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx&&audioCtx.state==="suspended")audioCtx.resume();}catch(e){}}
   function beep(freq,dur){if(!audioOn||!audioCtx)return;try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type="sine";o.frequency.value=freq;o.connect(g);g.connect(audioCtx.destination);const t=audioCtx.currentTime;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.35,t+0.008);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.start(t);o.stop(t+dur+0.02);}catch(e){}}
   function updateSlowInfo(){const L=leg(),sa=slowAtV(L),row=$("phaserow"),el=$("phase1");if(!row||!el)return;
@@ -360,9 +361,9 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
 
   // timer
   function nextBoundary(iv){const now=Date.now()/1000;return (Math.floor(now/iv)+1)*iv*1000;}
-  function startAt(ms){startTs=ms;stoppedElapsed=0;running=true;armedStart=null;lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatePassed=false;finishToneDone=false;refreshButtons();}
+  function startAt(ms){startTs=ms;stoppedElapsed=0;running=true;armedStart=null;lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;refreshButtons();}
   function stopClock(){if(running){stoppedElapsed=elapsed();running=false;refreshButtons();}}
-  function manualStart(){startTs=Date.now()-stoppedElapsed*1000;running=true;lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatePassed=false;finishToneDone=false;refreshButtons();}
+  function manualStart(){startTs=Date.now()-stoppedElapsed*1000;running=true;lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;refreshButtons();}
   function arm(){armedStart=nextBoundary(treeIv)+startTrim*1000;autoFinished=false;refreshButtons();}
   function cancelArm(){armedStart=null;refreshButtons();}
   function primaryAction(){initAudio();if(running)stopClock();else if(autoStartOn){armedStart==null?arm():cancelArm();}else manualStart();paintDash();}
@@ -378,7 +379,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   }
   function resetAll(){
     running=false;startTs=null;stoppedElapsed=0;distMi=0;instSpd=0;lastFix=null;armedStart=null;autoFinished=false;
-    legs.forEach(L=>{L.rec=null;L.wps.forEach(w=>w.a="");});clearRun();lastBeepSec=null;gatePassed=false;finishToneDone=false;if($("recnote"))$("recnote").style.display="none";setLeg(0);
+    legs.forEach(L=>{L.rec=null;L.wps.forEach(w=>w.a="");});clearRun();lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;if($("recnote"))$("recnote").style.display="none";setLeg(0);
   }
   function updateSplit(){const i=leg().wps.findIndex(w=>!w.a.trim());$("split").disabled=((startTs===null&&!running)||i<0);}
   function refreshButtons(){
@@ -443,7 +444,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
      const lt=$("dv-mavg"),ltag=$("dv-mavgtag"),lsub=$("dv-holdd");
      if(showTTL){const ttl=ep-e;lt.textContent=ttl.toFixed(2);lt.style.color=ttl<0?"var(--red)":"var(--ink)";
        if(ltag)ltag.textContent=(activeLeg===1?"TIME TO FINISH":"TIME TO LINE");
-       const gt=gateTTLv(L);lsub.textContent=(gt!=null&&endg)?("gate @ "+gt.toFixed(2)+"s"):(mAvg!=null?("avg "+mAvg.toFixed(1)):"");}
+       const ng=nextGate(L),ngs=ng?gatePassSec(L,ng.num-1):null;lsub.textContent=(ng&&ngs!=null)?(gateName(ng)+" @ "+(ep-ngs).toFixed(2)+"s"):(mAvg!=null?("avg "+mAvg.toFixed(1)):"");}
      else{lt.textContent=mAvg!=null?mAvg.toFixed(2):"—";lt.style.color="var(--amber)";
        if(ltag)ltag.textContent="MOVING AVG";
        lsub.textContent=cts?("hold "+cts.toFixed(1)+(mAvg!=null?"  ("+((mAvg-cts)>=0?"+":"−")+Math.abs(mAvg-cts).toFixed(1)+")":"")):"";}}
@@ -463,7 +464,9 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
       else{he.textContent="—";he.style.color="var(--ink)";ht.textContent="TIME IN HAND";ht.style.color="var(--muted)";}
     }
     if(audioOn&&running&&remF>0&&instSpd>5){const ttl=remF/instSpd*3600,sc=Math.ceil(ttl);if(sc<=5&&sc>=1&&sc!==lastBeepSec){beep(880,0.07);lastBeepSec=sc;}}
-    {const gp=gatePos(L),gt=gateTargetSec(L);if(gp!=null&&gt!=null&&running&&!gatePassed&&distMi>=gp){const err=e-gt;gatePassed=true;flashCapture("GATE "+(err>=0?"+":"−")+Math.abs(err).toFixed(2)+"s");beep(err>=0?700:1000,0.18);}}
+    if(running)for(let gi=0;gi<3;gi++){const g=gateAt(L,gi);if(g&&!gatesPassed[gi]&&distMi>=g.pos){gatesPassed[gi]=true;
+      if(g.num===1){flashCapture(gateName(g)+" \u2192 "+slowSpdV(L).toFixed(0));beep(640,0.22);}
+      else{const m=projMargin(L,distMi,e);const ms=(m!=null)?((m>=0?"+":"−")+Math.abs(m).toFixed(2)+"s"):"—";flashCapture(gateName(g)+"  "+ms);beep((m!=null&&Math.abs(m)<0.1)?1250:900,0.2);}}}
     let foot="";const i=L.wps.findIndex(w=>!w.a.trim());foot+=(i>=0?("Next: "+L.wps[i].label):"all marked");
     let req=null;const p=effPerfect(L),dist=legDist(L);if(p&&dist){const remD=dist-d,remT=p-e;if(remD>0&&remT>0)req=remD/(remT/3600);}
     if(req!=null)foot+="   ·   req "+req.toFixed(1)+" mph";
@@ -495,9 +498,8 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
       h+='<div class="srow" style="border-top:1px solid var(--line);margin-top:4px;padding-top:8px"><span>TOTAL actual</span><b>'+fmt(tot)+'</b></div>';
       h+='<div class="srow"><span>TOTAL vs perfect</span><b>'+(td>=0?"+":"−")+Math.abs(td).toFixed(2)+'s</b></div>';
       const d1=legDist(legs[0]),d2=legDist(legs[1]);if(d1&&d2&&tot>0)h+='<div class="srow"><span>Overall avg</span><b>'+((d1+d2)/(tot/3600)).toFixed(2)+' mph</b></div>';}
-    {const gf=gateFtV(L),gt=gateTargetSec(L),gttl=gateTTLv(L);
-     if(gf!=null&&gt!=null)h+='<div class="srow"><span>Gate ('+gf.toFixed(0)+' ft)</span><b>pass '+fmt(gt)+' &middot; '+gttl.toFixed(2)+'s to line</b></div>';
-     const gr=$("gaterow"),gi=$("gateinfo");if(gr&&gi){if(gf!=null&&gt!=null){gr.style.display="flex";gi.textContent="pass "+fmt(gt)+"  (TTL "+gttl.toFixed(2)+"s)";}else gr.style.display="none";}}
+    {let gh="";for(let gi=0;gi<3;gi++){const g=gateAt(L,gi);if(!g)continue;const ps=gatePassSec(L,gi);if(ps==null)continue;const ttl=effPerfect(L)-ps;gh+='<div class="srow"><span>'+gateName(g)+' ('+g.ft.toFixed(0)+' ft)</span><b>pass '+fmt(ps)+' &middot; '+ttl.toFixed(2)+'s</b></div>';}
+     h+=gh;const gr=$("gateinfo");if(gr){gr.innerHTML=gh;gr.style.display=gh?"flex":"none";}}
     $("sumhead").textContent=L.name+" summary";$("sumbody").innerHTML=h;updateSlowInfo();
   }
 
@@ -554,7 +556,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     paintSummary();paintDash();saveState();
   }
 
-  function syncSetup(){$("perfect").value=leg().perfect;$("dist").value=leg().dist;$("slowat").value=leg().slowAt||"";$("slowspd").value=leg().slowSpeed||"";$("gateft").value=leg().gateFt||"";$("plab").textContent=leg().name+" perfect";}
+  function syncSetup(){$("perfect").value=leg().perfect;$("dist").value=leg().dist;$("slowspd").value=leg().slowSpeed||"";for(let gi=0;gi<3;gi++){const g=(leg().gates||[])[gi]||{};const lf=$("g"+gi+"l"),ff=$("g"+gi+"f");if(lf)lf.value=g.label||"";if(ff)ff.value=g.ft||"";}$("plab").textContent=leg().name+" perfect";}
   function setLeg(n){activeLeg=n;[...$("legtab").children].forEach(b=>b.setAttribute("aria-pressed",(+b.dataset.leg===n)));syncSetup();renderWaypoints();updateSplit();refreshButtons();paintSummary();paintDash();}
   function applyClass(c){selClass=c;legs[0].perfect=fmt3(PERFECT[c][0]);legs[1].perfect=fmt3(PERFECT[c][1]);syncSetup();renderWaypoints();paintSummary();paintDash();saveState();}
 
@@ -562,7 +564,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   const LSKEY="sandhills_pace_v1";
   function saveState(){try{
     const cfg={selClass,autoStartOn,autoFinishOn,autoSplitOn,audioOn,treeIv,startTrim,
-      legs:legs.map(L=>({perfect:L.perfect,dist:L.dist,slowAt:L.slowAt,slowSpeed:L.slowSpeed,gateFt:L.gateFt,startLat:L.startLat,startLon:L.startLon,endLat:L.endLat,endLon:L.endLon,
+      legs:legs.map(L=>({perfect:L.perfect,dist:L.dist,slowAt:L.slowAt,slowSpeed:L.slowSpeed,gates:L.gates,startLat:L.startLat,startLon:L.startLon,endLat:L.endLat,endLon:L.endLon,
         wps:L.wps.map(w=>({label:w.label,d:w.d,la:w.la,lo:w.lo}))}))};
     localStorage.setItem(LSKEY,JSON.stringify(cfg));
   }catch(e){}}
@@ -579,7 +581,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     if(Array.isArray(o.legs)) o.legs.forEach((L,i)=>{ if(i<2){
       if(L.perfect) legs[i].perfect=L.perfect;
       if(L.dist) legs[i].dist=L.dist;
-      if(L.slowAt!=null) legs[i].slowAt=L.slowAt; if(L.slowSpeed!=null) legs[i].slowSpeed=L.slowSpeed; if(L.gateFt!=null) legs[i].gateFt=L.gateFt;
+      if(L.slowAt!=null) legs[i].slowAt=L.slowAt; if(L.slowSpeed!=null) legs[i].slowSpeed=L.slowSpeed; if(Array.isArray(L.gates)) legs[i].gates=L.gates.map(g=>({ft:g.ft||"",label:g.label||""}));
       legs[i].startLat=L.startLat??null; legs[i].startLon=L.startLon??null;
       legs[i].endLat=L.endLat??null; legs[i].endLon=L.endLon??null;
       if(Array.isArray(L.wps)) legs[i].wps=L.wps.map(w=>({label:w.label,d:w.d,a:"",la:w.la??null,lo:w.lo??null}));
@@ -641,9 +643,9 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   $("callegtab").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;selCalLeg=+b.dataset.cl;[...$("callegtab").children].forEach(x=>x.setAttribute("aria-pressed",x===b));});
   $("perfect").addEventListener("input",e=>{leg().perfect=e.target.value;renderWaypoints();paintSummary();paintDash();});
   $("dist").addEventListener("input",e=>{leg().dist=e.target.value;renderWaypoints();paintSummary();paintDash();});
-  $("slowat").addEventListener("input",e=>{leg().slowAt=e.target.value;renderWaypoints();paintSummary();paintDash();saveState();});
   $("slowspd").addEventListener("input",e=>{leg().slowSpeed=e.target.value;renderWaypoints();paintSummary();paintDash();saveState();});
-  $("gateft").addEventListener("input",e=>{leg().gateFt=e.target.value;paintSummary();paintDash();saveState();});
+  for(let gi=0;gi<3;gi++){const setG=(k,v)=>{if(!Array.isArray(leg().gates))leg().gates=[];while(leg().gates.length<3)leg().gates.push({ft:"",label:""});leg().gates[gi][k]=v;paintSummary();paintDash();saveState();};
+    $("g"+gi+"l").addEventListener("input",e=>setG("label",e.target.value));$("g"+gi+"f").addEventListener("input",e=>setG("ft",e.target.value));}
   $("startstop").onclick=primaryAction;$("split").onclick=splitNext;$("fin").onclick=finishLeg;$("reset").onclick=resetAll;$("gpsbtn").onclick=enableGPS;$("savecal").onclick=saveCal;
   $("drivebtn").onclick=enterDrive;$("dv-exit").onclick=exitDrive;$("logbtn").onclick=shareLog;
   $("dv-ss").onclick=()=>{primaryAction();paintDrive();};$("dv-split").onclick=()=>{splitNext();paintDrive();};
