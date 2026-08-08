@@ -116,7 +116,7 @@
 </style>
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-  <span class="eyebrow" style="margin:0">Sandhills Open Road &middot; GPS Pace &middot; <b style="color:var(--teal)">build 26</b></span>
+  <span class="eyebrow" style="margin:0">Sandhills Open Road &middot; GPS Pace &middot; <b style="color:var(--teal)">build 27</b></span>
   <span id="gpsind" style="font-size:11px;font-weight:800;font-family:var(--mono);color:var(--muted)">&#9679; GPS</span>
 </div>
 <div id="mainflash"></div>
@@ -479,7 +479,8 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
       else if(distMi>=g.pos)hit=true;
       if(hit){gatesPassed[gi]=true;if(g.lat!=null)snap(g.pos);   // recalibrate distance to the route mile-mark
         if(g.num===1){flashCapture(gateName(g)+" \u2192 SLOW");beep(640,0.22);}
-        else{const m=projMargin(L,distMi,e);const ms=(m!=null)?((m>=0?"+":"−")+Math.abs(m).toFixed(2)+"s"):"—";flashCapture(gateName(g)+"  "+ms);beep((m!=null&&Math.abs(m)<0.1)?1250:900,0.2);}}}
+        else if(g.num===2){const m=projMargin(L,distMi,e);const ms=(m!=null)?((m>=0?"+":"−")+Math.abs(m).toFixed(2)+"s"):"—";flashCapture(gateName(g)+"  "+ms);beep((m!=null&&Math.abs(m)<0.1)?1250:900,0.2);}
+        /* Gate 3+ : silent snap only — no cue this close to the line */}}
     let foot="";const i=L.wps.findIndex(w=>!w.a.trim());foot+=(i>=0?("Next: "+L.wps[i].label):"all marked");
     let req=null;const p=effPerfect(L),dist=legDist(L);if(p&&dist){const remD=dist-d,remT=p-e;if(remD>0&&remT>0)req=remD/(remT/3600);}
     if(req!=null)foot+="   ·   req "+req.toFixed(1)+" mph";
