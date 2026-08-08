@@ -116,7 +116,7 @@
 </style>
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-  <span class="eyebrow" style="margin:0">Sandhills Open Road &middot; GPS Pace &middot; <b style="color:var(--teal)">build 27</b></span>
+  <span class="eyebrow" style="margin:0">Sandhills Open Road &middot; GPS Pace &middot; <b style="color:var(--teal)">build 29</b></span>
   <span id="gpsind" style="font-size:11px;font-weight:800;font-family:var(--mono);color:var(--muted)">&#9679; GPS</span>
 </div>
 <div id="mainflash"></div>
@@ -158,6 +158,7 @@
   <label class="tog"><input type="checkbox" id="autofinish"> Auto-finish at leg distance</label>
   <label class="tog"><input type="checkbox" id="autosplit"> GPS auto-split at calibrated waypoints</label>
   <label class="tog"><input type="checkbox" id="audiocue" checked> Finish countdown beeps (last 5 s)</label>
+  <label class="tog"><input type="checkbox" id="rectrack" checked> Record GPS track (for later speed model)</label>
 </div>
 
 <button class="btn gps" id="gpsbtn">Enable GPS</button>
@@ -172,6 +173,7 @@
 </div>
 <button class="drivebtn" id="drivebtn">&#9654;&nbsp; DRIVE MODE (big screen)</button>
 <button class="drivebtn" id="logbtn" style="background:#22252C">&#8681;&nbsp; SAVE / SHARE LOG</button>
+<button class="drivebtn" id="trackbtn" style="background:#22252C">&#8681;&nbsp; EXPORT TRACK (CSV)</button>
 
 <div class="card"><h2 id="sumhead">Leg summary</h2><div id="sumbody"></div></div>
 
@@ -248,6 +250,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   let watchId=null,lastFix=null,distMi=0,instSpd=0,gpsMsg="GPS off",curLat=null,curLon=null,curAcc=null,lastIntegT=0,lastLoopIntegT=Date.now();
   let calibrating=false,captures=[],selCalLeg=0;
   let driveOn=false;
+  let trackLog=[],recTrack=true;
   let audioCtx=null,audioOn=true,lastBeepSec=null,gatesPassed=[false,false,false],finishToneDone=false,snapsDone=[];
   let recovered=false;
   let lastRunSave=0;
@@ -309,6 +312,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
       if(running||calibrating){const fx={lat:c.latitude,lon:c.longitude};if(lastFix){const m=haversine(lastFix,fx);if(isFinite(m)&&m>=0&&m<1500)distMi+=m/1609.344;}lastFix=fx;}
       if(running){const _L=leg();if(_L.fLat!=null&&curLat!=null){const _rem=haversine({lat:curLat,lon:curLon},{lat:_L.fLat,lon:_L.fLon})/1609.344;if(isFinite(_rem)&&_rem<0.4)distMi=Math.max(0,legDist(_L)-_rem);}}
       if(running&&curLat!=null){const _L=leg(),_sn=_L.snaps||[],_th=Math.max(30,(instSpd/2.2369363)*0.9);for(let _k=0;_k<_sn.length;_k++){if(!snapsDone[_k]&&haversine({lat:curLat,lon:curLon},{lat:_sn[_k].lat,lon:_sn[_k].lon})<=_th){snap(_sn[_k].mi);snapsDone[_k]=true;}}}
+      if(running&&recTrack&&curLat!=null&&trackLog.length<20000){const _hd=(c.heading!=null&&c.heading>=0)?c.heading:null,_pv=trackLog.length?trackLog[trackLog.length-1]:null;let _lg=null;if(_pv&&_pv.hdg!=null&&_hd!=null){const _dt=elapsed()-_pv.t;if(_dt>0.1&&_dt<5){const _dth=(((_hd-_pv.hdg+540)%360)-180)*Math.PI/180,_v=instSpd/2.2369363;_lg=Math.abs(_v*(_dth/_dt))/9.80665;}}trackLog.push({leg:activeLeg,t:elapsed(),lat:curLat,lon:curLon,spd:instSpd,dist:distMi,acc:curAcc,hdg:_hd,latg:_lg});}
       if(calibrating&&!captures.some(x=>x.kind==='start')){captures.unshift({label:'Start',dist:0,lat:curLat,lon:curLon,kind:'start'});renderCaptures();refreshCalBtns();}
       if(running&&autoSplitOn)proximityCheck();
       if(calibrating)paintCal();
@@ -366,7 +370,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
 
   // timer
   function nextBoundary(iv){const now=Date.now()/1000;return (Math.floor(now/iv)+1)*iv*1000;}
-  function startAt(ms){startTs=ms;stoppedElapsed=0;running=true;armedStart=null;lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];refreshButtons();}
+  function startAt(ms){startTs=ms;stoppedElapsed=0;running=true;armedStart=null;if(activeLeg===0){trackLog=[];}lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];refreshButtons();}
   function stopClock(){if(running){stoppedElapsed=elapsed();running=false;refreshButtons();}}
   function manualStart(){startTs=Date.now()-stoppedElapsed*1000;running=true;lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];refreshButtons();}
   function arm(){armedStart=nextBoundary(treeIv)+startTrim*1000;autoFinished=false;refreshButtons();}
@@ -382,11 +386,12 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     if(!running)return;   // already finished this run — ignore repeat taps
     leg().rec=elapsed();saveRun();running=false;startTs=null;stoppedElapsed=0;distMi=0;instSpd=0;lastFix=null;armedStart=null;autoFinished=false;
     {const _f=$("fin");if(_f)_f.disabled=true;const _df=$("dv-fin");if(_df)_df.style.display="none";}
+    saveTrack();
     if(activeLeg===0)setLeg(1);else{refreshButtons();paintSummary();paintDash();}
   }
   function resetAll(){
     running=false;startTs=null;stoppedElapsed=0;distMi=0;instSpd=0;lastFix=null;armedStart=null;autoFinished=false;
-    legs.forEach(L=>{L.rec=null;L.wps.forEach(w=>w.a="");});clearRun();lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];if($("recnote"))$("recnote").style.display="none";setLeg(0);
+    legs.forEach(L=>{L.rec=null;L.wps.forEach(w=>w.a="");});clearRun();lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];clearTrack();if($("recnote"))$("recnote").style.display="none";setLeg(0);
   }
   function updateSplit(){const i=leg().wps.findIndex(w=>!w.a.trim());$("split").disabled=((startTs===null&&!running)||i<0);}
   function refreshButtons(){
@@ -578,7 +583,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   // ---- persistence (survives closing the home-screen app)
   const LSKEY="sandhills_pace_v1";
   function saveState(){try{
-    const cfg={selClass,autoStartOn,autoFinishOn,autoSplitOn,audioOn,treeIv,startTrim,
+    const cfg={selClass,autoStartOn,autoFinishOn,autoSplitOn,audioOn,recTrack,treeIv,startTrim,
       legs:legs.map(L=>({perfect:L.perfect,dist:L.dist,slowAt:L.slowAt,slowSpeed:L.slowSpeed,gates:L.gates.map(g=>({ft:g.ft||"",label:g.label||""})),startLat:L.startLat,startLon:L.startLon,endLat:L.endLat,endLon:L.endLon,fLat:L.fLat,fLon:L.fLon,
         wps:L.wps.map(w=>({label:w.label,d:w.d,la:w.la,lo:w.lo}))}))};
     localStorage.setItem(LSKEY,JSON.stringify(cfg));
@@ -591,6 +596,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     if(typeof o.autoFinishOn==='boolean') autoFinishOn=o.autoFinishOn;
     if(typeof o.autoSplitOn==='boolean') autoSplitOn=o.autoSplitOn;
     if(typeof o.audioOn==='boolean') audioOn=o.audioOn;
+    if(typeof o.recTrack==='boolean') recTrack=o.recTrack;
     if(o.treeIv) treeIv=o.treeIv;
     if(typeof o.startTrim==='number') startTrim=o.startTrim;
     if(Array.isArray(o.legs)) o.legs.forEach((L,i)=>{ if(i<2){
@@ -652,7 +658,18 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   }
 
   loadState();
-  recovered=loadRun();
+  const TRACKKEY="sandhills_track_v1";
+  function saveTrack(){try{if(recTrack&&trackLog.length)localStorage.setItem(TRACKKEY,JSON.stringify(trackLog));}catch(e){}}
+  function loadTrack(){try{const s=localStorage.getItem(TRACKKEY);if(s){const o=JSON.parse(s);if(Array.isArray(o))trackLog=o;}}catch(e){}}
+  function clearTrack(){trackLog=[];try{localStorage.removeItem(TRACKKEY);}catch(e){}}
+  function exportTrack(){
+    if(!trackLog.length){alert("No track recorded yet — it records automatically while a leg is running.");return;}
+    let csv="leg,elapsed_s,lat,lon,mph,dist_mi,acc_m,heading,lat_g\n";
+    for(const r of trackLog)csv+=(r.leg+1)+","+r.t.toFixed(2)+","+r.lat.toFixed(6)+","+r.lon.toFixed(6)+","+r.spd.toFixed(1)+","+r.dist.toFixed(4)+","+(r.acc!=null?r.acc:"")+","+(r.hdg!=null?r.hdg.toFixed(0):"")+","+(r.latg!=null?r.latg.toFixed(3):"")+"\n";
+    try{const file=new File([csv],"sandhills_track.csv",{type:"text/csv"});if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:"Sandhills track"}).catch(()=>{});return;}}catch(e){}
+    try{const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="sandhills_track.csv";document.body.appendChild(a);a.click();a.remove();}catch(e){if(navigator.clipboard)navigator.clipboard.writeText(csv).then(()=>alert("Track copied to clipboard"));}
+  }
+  recovered=loadRun();loadTrack();
   CLASSES.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=(c===60?"60 dry":c);if(c===selClass)o.selected=true;$("cls").appendChild(o);});
   $("cls").addEventListener("change",e=>applyClass(+e.target.value));
   $("legtab").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setLeg(+b.dataset.leg);});
@@ -663,7 +680,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   for(let gi=0;gi<3;gi++){const setG=(k,v)=>{if(!Array.isArray(leg().gates))leg().gates=[];while(leg().gates.length<3)leg().gates.push({ft:"",label:""});leg().gates[gi][k]=v;paintSummary();paintDash();saveState();};
     $("g"+gi+"l").addEventListener("input",e=>setG("label",e.target.value));$("g"+gi+"f").addEventListener("input",e=>setG("ft",e.target.value));}
   $("startstop").onclick=primaryAction;$("split").onclick=splitNext;$("fin").onclick=finishLeg;$("reset").onclick=resetAll;$("gpsbtn").onclick=enableGPS;$("savecal").onclick=saveCal;
-  $("drivebtn").onclick=enterDrive;$("dv-exit").onclick=exitDrive;$("logbtn").onclick=shareLog;
+  $("drivebtn").onclick=enterDrive;$("dv-exit").onclick=exitDrive;$("logbtn").onclick=shareLog;$("trackbtn").onclick=exportTrack;
   $("dv-ss").onclick=()=>{primaryAction();paintDrive();};$("dv-split").onclick=()=>{splitNext();paintDrive();};
   $("dv-fin").onclick=()=>{finishLeg();paintDrive();};
   $("push").onclick=()=>{if(armedStart!=null){armedStart+=treeIv*1000;paintDash();}};
@@ -673,10 +690,11 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   $("autofinish").addEventListener("change",e=>{autoFinishOn=e.target.checked;});
   $("autosplit").addEventListener("change",e=>{autoSplitOn=e.target.checked;});
   $("audiocue").addEventListener("change",e=>{audioOn=e.target.checked;if(audioOn)initAudio();saveState();});
+  $("rectrack").addEventListener("change",e=>{recTrack=e.target.checked;saveState();});
   $("ivwrap").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;treeIv=+b.dataset.iv;[...$("ivwrap").children].forEach(x=>x.setAttribute("aria-pressed",x===b));$("ivlabel").textContent=treeIv;refreshButtons();});
 
   // reflect saved settings + persist on any config change
-  $("autostart").checked=autoStartOn; $("autofinish").checked=autoFinishOn; $("autosplit").checked=autoSplitOn; $("audiocue").checked=audioOn;
+  $("autostart").checked=autoStartOn; $("autofinish").checked=autoFinishOn; $("autosplit").checked=autoSplitOn; $("audiocue").checked=audioOn; $("rectrack").checked=recTrack;
   $("ivwrap").style.display=autoStartOn?"flex":"none"; $("ivlabel").textContent=treeIv;
   $("trimwrap").style.display=autoStartOn?"flex":"none";
   $("trimval").textContent="start trim "+(startTrim>=0?"+":"\u2212")+Math.abs(startTrim).toFixed(1)+"s";
