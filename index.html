@@ -116,7 +116,7 @@
 </style>
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-  <span class="eyebrow" style="margin:0">Sandhills Open Road &middot; GPS Pace &middot; <b style="color:var(--teal)">build 33</b></span>
+  <span class="eyebrow" style="margin:0">Sandhills Open Road &middot; GPS Pace &middot; <b style="color:var(--teal)">build 35</b></span>
   <span id="gpsind" style="font-size:11px;font-weight:800;font-family:var(--mono);color:var(--muted)">&#9679; GPS</span>
 </div>
 <div id="mainflash"></div>
@@ -159,6 +159,7 @@
   <label class="tog"><input type="checkbox" id="autosplit"> GPS auto-split at calibrated waypoints</label>
   <label class="tog"><input type="checkbox" id="audiocue" checked> Finish countdown beeps (last 5 s)</label>
   <label class="tog"><input type="checkbox" id="rectrack" checked> Record GPS track (for later speed model)</label>
+  <label class="tog"><input type="checkbox" id="navcall" checked> Navigator callouts — every corner called ahead</label>
   <label class="tog"><input type="checkbox" id="conttone" checked> Continuous pace tone (drive it to silent)</label>
   <label class="tog"><input type="checkbox" id="useprofile" checked> Corner speed profile — Leg 2</label>
   <button id="testtone" style="margin-top:8px;padding:9px 14px;background:#22252C;color:var(--ink);border:1px solid var(--line);border-radius:8px;font-weight:700;font-size:13px">&#9654;&nbsp; Test pace tone (low→silent→high)</button>
@@ -240,6 +241,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   const MINSP={60:0,80:60,90:70,95:75,100:80,105:85,110:90,115:95,120:100,125:105};
 
   let selClass=120, activeLeg=0;
+  const NOTES=[[1.63,106,1],[1.73,100,1],[2.26,108,1],[2.57,109,1],[4.92,86,2],[4.98,88,2],[5.37,109,1],[5.49,105,2],[6.01,106,2],[6.32,103,1],[6.61,107,1],[6.78,116,2],[7.41,117,2],[7.6,115,1],[12.72,106,2],[13.01,108,1],[13.07,109,1],[13.95,101,1],[14.31,112,1],[14.37,116,1],[14.43,118,1],[14.71,117,1],[15.32,121,2],[16.57,91,2],[16.69,97,2],[17.22,114,2],[17.28,121,2],[18.01,119,1],[18.55,122,1],[20.46,122,1],[20.73,119,1],[21.06,101,2],[21.28,110,2],[21.82,114,1],[25.46,102,2],[26.08,102,1],[26.43,99,2]],NAVLEAD=7.0;let navPtr=0,navOn=true;
   const P2=[4,79,99,102,112,119,123,125,125,125,123,119,120,119,116,112,106,100,109,114,116,117,114,108,115,114,107,117,123,126,128,130,130,128,130,132,132,131,130,129,132,132,133,134,133,130,125,118,105,86,91,101,106,109,108,104,113,117,116,113,106,112,111,103,112,114,107,115,115,115,121,124,124,121,117,120,115,119,118,118,122,127,130,133,135,136,134,135,138,137,136,136,138,140,141,142,140,140,141,142,143,143,143,143,142,142,141,142,142,139,140,141,140,142,141,140,138,133,135,135,132,126,126,124,119,111,102,106,109,109,108,109,117,121,122,121,117,109,107,101,110,113,113,112,118,121,120,117,127,132,134,134,129,121,128,131,131,129,135,136,136,134,130,124,114,94,95,98,108,114,118,117,114,125,130,132,132,130,122,122,119,125,127,127,125,124,114,122,126,127,125,122,131,136,137,138,134,135,132,128,126,118,123,121,119,123,123,119,118,115,105,106,108,115,120,122,122,119,114,124,131,134,137,137,136,138,137,139,140,142,144,144,144,143,141,140,138,135,131,124,123,123,123,122,120,117,116,117,115,113,109,106,105,104,102,103,103,101,104,104,102,103,103,102,99,102,103],P2STEP=0.1;let P2CUM=null,P2TOTAL=0,profileOn=true,contOn=true;
   function buildP2(){P2CUM=[0];let t=0;for(let i=0;i<P2.length-1;i++){const v=(P2[i]+P2[i+1])/2;t+=(P2STEP/v)*3600;P2CUM.push(t);}P2TOTAL=t;}
   buildP2();
@@ -298,16 +300,25 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   function gateName(g){return "Gate "+g.num+(g.label?" "+g.label:"");}
   function gatePassSec(L,i){const g=gateAt(L,i);return (g&&g.pos>0)?targetSec(L,g.pos):null;}
   function nextGate(L){for(let gi=0;gi<3;gi++){const g=gateAt(L,gi);if(g&&distMi<g.pos)return g;}return null;}
-  function initAudio(){try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx&&audioCtx.state==="suspended")audioCtx.resume();initCont();}catch(e){}}
+  function initAudio(){try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx&&audioCtx.state==="suspended")audioCtx.resume();initCont();try{if(window.speechSynthesis){const w=new SpeechSynthesisUtterance(" ");w.volume=0;window.speechSynthesis.speak(w);}}catch(e){}}catch(e){}}
   function beep(freq,dur){if(!audioOn||!audioCtx)return;try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type="sine";o.frequency.value=freq;o.connect(g);g.connect(audioCtx.destination);const t=audioCtx.currentTime;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.35,t+0.008);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.start(t);o.stop(t+dur+0.02);}catch(e){}}
   let contOsc=null,contGain=null;
   function initCont(){if(!audioCtx||contOsc)return;try{contOsc=audioCtx.createOscillator();contGain=audioCtx.createGain();contOsc.type='sine';contOsc.frequency.value=500;contGain.gain.value=0;contOsc.connect(contGain);contGain.connect(audioCtx.destination);contOsc.start();}catch(e){}}
   function updateCont(err){if(!contOsc||!contGain||!audioCtx)return;const now=audioCtx.currentTime;if(err==null||!contOn||!audioOn){contGain.gain.setTargetAtTime(0,now,0.05);return;}const db=2.5;if(Math.abs(err)<db){contGain.gain.setTargetAtTime(0,now,0.09);return;}const mag=Math.abs(err)-db;const freq=err>0?Math.min(1150,520+mag*45):Math.max(240,480-mag*32);const vol=Math.min(0.16,0.03+mag*0.007);contOsc.frequency.setTargetAtTime(freq,now,0.06);contGain.gain.setTargetAtTime(vol,now,0.06);}
   function stopCont(){if(contGain&&audioCtx)contGain.gain.setTargetAtTime(0,audioCtx.currentTime,0.05);}
+  function speak(txt){try{if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(txt);u.rate=1.15;u.pitch=1;u.volume=1;window.speechSynthesis.speak(u);}}catch(e){}}
+  function spdWords(n){n=Math.round(n);const o=["","one","two","three","four","five","six","seven","eight","nine"],tn={2:"twenty",3:"thirty",4:"forty",5:"fifty",6:"sixty",7:"seventy",8:"eighty",9:"ninety"},te={10:"ten",11:"eleven",12:"twelve",13:"thirteen",14:"fourteen",15:"fifteen",16:"sixteen",17:"seventeen",18:"eighteen",19:"nineteen"};function tw(x){if(x<10)return o[x];if(x<20)return te[x];return tn[Math.floor(x/10)]+(x%10?" "+o[x%10]:"");}if(n<100)return tw(n);const r=n-100;if(r===0)return "one hundred";if(r<10)return "one oh "+o[r];return "one "+tw(r);}
+  function navCheck(L,d){if(!navOn||!running||!profActive(L)||instSpd<12)return;
+    while(navPtr<NOTES.length&&NOTES[navPtr][0]<d-0.02)navPtr++;   // fell behind -> skip to the corner you are actually approaching
+    if(navPtr>=NOTES.length)return;
+    if(window.speechSynthesis&&window.speechSynthesis.speaking)return;   // one call at a time, chains as each finishes
+    const n=NOTES[navPtr],leadMi=(instSpd/3600)*NAVLEAD;
+    if(n[0]-d<=leadMi){const dir=n[2]===1?"left":"right";speak(dir+" "+spdWords(n[1]));navPtr++;}}
   function demoTone(){initAudio();if(!contOsc||!contGain||!audioCtx){alert('No audio yet — tap the screen once, set the ring switch on, turn volume up, then try again.');return;}
     const seq=[[-15,0],[-9,800],[-4,1500],[0,2100],[4,2700],[9,3300],[15,3900]];
     seq.forEach(function(p){setTimeout(function(){const now=audioCtx.currentTime,err=p[0];if(Math.abs(err)<2.5){contGain.gain.setTargetAtTime(0,now,0.08);}else{const mag=Math.abs(err)-2.5,freq=err>0?Math.min(1150,520+mag*45):Math.max(240,480-mag*32),vol=Math.min(0.16,0.03+mag*0.007);contOsc.frequency.setTargetAtTime(freq,now,0.06);contGain.gain.setTargetAtTime(vol,now,0.06);}},p[1]);});
-    setTimeout(function(){if(contGain&&audioCtx)contGain.gain.setTargetAtTime(0,audioCtx.currentTime,0.1);},4700);}
+    setTimeout(function(){if(contGain&&audioCtx)contGain.gain.setTargetAtTime(0,audioCtx.currentTime,0.1);},4700);
+    setTimeout(function(){["left one oh five","right ninety one"].forEach(function(t){try{if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(t);u.rate=1.15;window.speechSynthesis.speak(u);}}catch(e){}});},5200);}
   function updateSlowInfo(){const L=leg(),sa=slowAtV(L),row=$("phaserow"),el=$("phase1");if(!row||!el)return;
     if(sa==null){row.style.display="none";return;}row.style.display="flex";const v1=phase1Speed(L);
     if(v1==null){el.textContent="plan too tight";el.style.color="var(--red)";return;}
@@ -387,9 +398,9 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
 
   // timer
   function nextBoundary(iv){const now=Date.now()/1000;return (Math.floor(now/iv)+1)*iv*1000;}
-  function startAt(ms){startTs=ms;stoppedElapsed=0;running=true;armedStart=null;if(activeLeg===0){trackLog=[];}lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];easeWarned=false;refreshButtons();}
+  function startAt(ms){startTs=ms;stoppedElapsed=0;running=true;armedStart=null;if(activeLeg===0){trackLog=[];}lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];easeWarned=false;navPtr=0;refreshButtons();}
   function stopClock(){if(running){stoppedElapsed=elapsed();running=false;refreshButtons();}}
-  function manualStart(){startTs=Date.now()-stoppedElapsed*1000;running=true;lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];easeWarned=false;refreshButtons();}
+  function manualStart(){startTs=Date.now()-stoppedElapsed*1000;running=true;lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];easeWarned=false;navPtr=0;refreshButtons();}
   function arm(){armedStart=nextBoundary(treeIv)+startTrim*1000;autoFinished=false;refreshButtons();}
   function cancelArm(){armedStart=null;refreshButtons();}
   function primaryAction(){initAudio();if(running)stopClock();else if(autoStartOn){armedStart==null?arm():cancelArm();}else manualStart();paintDash();}
@@ -408,7 +419,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   }
   function resetAll(){
     running=false;startTs=null;stoppedElapsed=0;distMi=0;instSpd=0;lastFix=null;armedStart=null;autoFinished=false;
-    legs.forEach(L=>{L.rec=null;L.wps.forEach(w=>w.a="");});clearRun();lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];easeWarned=false;clearTrack();if($("recnote"))$("recnote").style.display="none";setLeg(0);
+    legs.forEach(L=>{L.rec=null;L.wps.forEach(w=>w.a="");});clearRun();lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];easeWarned=false;navPtr=0;clearTrack();if($("recnote"))$("recnote").style.display="none";setLeg(0);
   }
   function updateSplit(){const i=leg().wps.findIndex(w=>!w.a.trim());$("split").disabled=((startTs===null&&!running)||i<0);}
   function refreshButtons(){
@@ -469,6 +480,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     const ok=(mAvg==null)||(mAvg<=250);
     if(!ok)mAvg=null;
     if(running&&profActive(L)&&instSpd>=0)updateCont(instSpd-profV(d));else updateCont(null);
+    navCheck(L,d);
     {const D=legDist(L), ep=effPerfect(L), rem=D-d, remT=ep-e;
      const sa=slowAtV(L), inSlow=(sa!=null&&d>=sa&&sa<D), finalNoSlow=(rem>0&&rem<0.5&&!inSlow);
      const lt=$("dv-mavg"),ltag=$("dv-mavgtag"),lsub=$("dv-holdd");
@@ -618,7 +630,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   // ---- persistence (survives closing the home-screen app)
   const LSKEY="sandhills_pace_v1";
   function saveState(){try{
-    const cfg={selClass,autoStartOn,autoFinishOn,autoSplitOn,audioOn,recTrack,contOn,profileOn,treeIv,startTrim,
+    const cfg={selClass,autoStartOn,autoFinishOn,autoSplitOn,audioOn,recTrack,contOn,profileOn,navOn,treeIv,startTrim,
       legs:legs.map(L=>({perfect:L.perfect,dist:L.dist,slowAt:L.slowAt,slowSpeed:L.slowSpeed,gates:L.gates.map(g=>({ft:g.ft||"",label:g.label||""})),startLat:L.startLat,startLon:L.startLon,endLat:L.endLat,endLon:L.endLon,fLat:L.fLat,fLon:L.fLon,
         wps:L.wps.map(w=>({label:w.label,d:w.d,la:w.la,lo:w.lo}))}))};
     localStorage.setItem(LSKEY,JSON.stringify(cfg));
@@ -633,6 +645,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     if(typeof o.audioOn==='boolean') audioOn=o.audioOn;
     if(typeof o.recTrack==='boolean') recTrack=o.recTrack;
     if(typeof o.contOn==='boolean') contOn=o.contOn;
+    if(typeof o.navOn==='boolean') navOn=o.navOn;
     if(typeof o.profileOn==='boolean') profileOn=o.profileOn;
     if(o.treeIv) treeIv=o.treeIv;
     if(typeof o.startTrim==='number') startTrim=o.startTrim;
@@ -728,13 +741,14 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   $("autosplit").addEventListener("change",e=>{autoSplitOn=e.target.checked;});
   $("audiocue").addEventListener("change",e=>{audioOn=e.target.checked;if(audioOn)initAudio();saveState();});
   $("rectrack").addEventListener("change",e=>{recTrack=e.target.checked;saveState();});
+  $("navcall").addEventListener("change",e=>{navOn=e.target.checked;saveState();});
   $("conttone").addEventListener("change",e=>{contOn=e.target.checked;if(!contOn&&typeof updateCont==="function")updateCont(null);saveState();});
   $("useprofile").addEventListener("change",e=>{profileOn=e.target.checked;saveState();});
   $("testtone").onclick=demoTone;
   $("ivwrap").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;treeIv=+b.dataset.iv;[...$("ivwrap").children].forEach(x=>x.setAttribute("aria-pressed",x===b));$("ivlabel").textContent=treeIv;refreshButtons();});
 
   // reflect saved settings + persist on any config change
-  $("autostart").checked=autoStartOn; $("autofinish").checked=autoFinishOn; $("autosplit").checked=autoSplitOn; $("audiocue").checked=audioOn; $("rectrack").checked=recTrack; $("conttone").checked=contOn; $("useprofile").checked=profileOn;
+  $("autostart").checked=autoStartOn; $("autofinish").checked=autoFinishOn; $("autosplit").checked=autoSplitOn; $("audiocue").checked=audioOn; $("rectrack").checked=recTrack; $("conttone").checked=contOn; $("useprofile").checked=profileOn; $("navcall").checked=navOn;
   $("ivwrap").style.display=autoStartOn?"flex":"none"; $("ivlabel").textContent=treeIv;
   $("trimwrap").style.display=autoStartOn?"flex":"none";
   $("trimval").textContent="start trim "+(startTrim>=0?"+":"\u2212")+Math.abs(startTrim).toFixed(1)+"s";
