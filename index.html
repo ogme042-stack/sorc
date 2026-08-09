@@ -116,7 +116,7 @@
 </style>
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-  <span class="eyebrow" style="margin:0">Sandhills Open Road &middot; GPS Pace &middot; <b style="color:var(--teal)">build 35</b></span>
+  <span class="eyebrow" style="margin:0">Sandhills Open Road &middot; GPS Pace &middot; <b style="color:var(--teal)">build 36</b></span>
   <span id="gpsind" style="font-size:11px;font-weight:800;font-family:var(--mono);color:var(--muted)">&#9679; GPS</span>
 </div>
 <div id="mainflash"></div>
@@ -128,6 +128,7 @@
 <div class="legtab" id="legtab">
   <button data-leg="0" aria-pressed="true">Leg 1 (up)</button>
   <button data-leg="1" aria-pressed="false">Leg 2 (return)</button>
+  <button data-leg="2" aria-pressed="false">Test 60</button>
 </div>
 <div id="recnote" style="display:none;background:rgba(51,214,201,.12);border:1px solid rgba(51,214,201,.4);color:var(--teal);border-radius:10px;padding:8px 12px;font-size:12px;margin-bottom:12px"></div>
 
@@ -198,7 +199,7 @@
 <div class="card">
   <h2>Calibrate course (pre-drive)</h2>
   <div class="legtab" id="callegtab" style="margin-bottom:10px">
-    <button data-cl="0" aria-pressed="true">Leg 1</button><button data-cl="1" aria-pressed="false">Leg 2</button>
+    <button data-cl="0" aria-pressed="true">Leg 1</button><button data-cl="1" aria-pressed="false">Leg 2</button><button data-cl="2" aria-pressed="false">Test</button>
   </div>
   <div class="calread"><div class="cd" id="cald">0.000 mi</div><div class="cc" id="calc">— , —</div></div>
   <div class="controls" id="calctrls"></div>
@@ -252,7 +253,9 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     {name:"Leg 1 (up)",perfect:"14:21.000",dist:"28.73",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,fLat:41.763993,fLon:-100.091920,slowAt:"",slowSpeed:"105",gates:[],snaps:[{mi:3.9,lat:41.487265,lon:-100.195884},{mi:9.59,lat:41.566687,lon:-100.194010},{mi:15.57,lat:41.615490,lon:-100.151184},{mi:21.32,lat:41.697601,lon:-100.155769},{mi:25.08,lat:41.739155,lon:-100.135470}],
      wps:[{label:"WP 1",d:"28.00",a:"",la:null,lo:null},{label:"Finish",d:"28.73",a:"",la:null,lo:null}]},
     {name:"Leg 2 (return)",perfect:"13:18.000",dist:"26.66",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,fLat:41.469000,fLon:-100.200569,slowAt:"23.82",slowSpeed:"105",gates:[{ft:"15048",label:"Rd 806",lat:41.508972,lon:-100.195000},{ft:"4277",label:"",lat:41.479589,lon:-100.195239},{ft:"1296",label:"fence gate",lat:41.472458,lon:-100.199648}],snaps:[{mi:5.08,lat:41.737374,lon:-100.152552},{mi:10.86,lat:41.654631,lon:-100.156326},{mi:15.78,lat:41.609819,lon:-100.183234},{mi:20.8,lat:41.550020,lon:-100.197568}],
-     wps:[{label:"Rd 806",d:"26.19",a:"",la:null,lo:null},{label:"WP 2",d:"26.40",a:"",la:null,lo:null},{label:"Finish",d:"26.66",a:"",la:null,lo:null}]}
+     wps:[{label:"Rd 806",d:"26.19",a:"",la:null,lo:null},{label:"WP 2",d:"26.40",a:"",la:null,lo:null},{label:"Finish",d:"26.66",a:"",la:null,lo:null}]},
+    {name:"Test 60",perfect:"5:00.000",dist:"5.00",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,fLat:null,fLon:null,slowAt:"",slowSpeed:"60",flat:true,gates:[],snaps:[],
+     wps:[{label:"Finish",d:"5.00",a:"",la:null,lo:null}]}
   ];
 
   let startTs=null,stoppedElapsed=0,running=false,armedStart=null,autoFinished=false;
@@ -276,7 +279,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
 
   const leg=()=>legs[activeLeg];
   const perfectSec=L=>parseClock(L.perfect);
-  function effPerfect(L){const p=perfectSec(L);
+  function effPerfect(L){if(L.flat){const d=legDist(L),t=parseFloat(L.slowSpeed);if(d>0&&t>0)return d/(t/3600);}const p=perfectSec(L);
     if(L===legs[1]&&legs[0].rec!=null){const p0=perfectSec(legs[0]),p1=perfectSec(legs[1]);if(p0!=null&&p1!=null)return (p0+p1)-legs[0].rec;}
     return p;}
   const legDist=L=>parseFloat(L.dist);
@@ -479,14 +482,14 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     let mAvg=(d>0&&e>0)?d/(e/3600):null;
     const ok=(mAvg==null)||(mAvg<=250);
     if(!ok)mAvg=null;
-    if(running&&profActive(L)&&instSpd>=0)updateCont(instSpd-profV(d));else updateCont(null);
+    {const _tv=profActive(L)?profV(d):(L.flat?holdSpeed(L):null);if(running&&_tv!=null&&instSpd>=0)updateCont(instSpd-_tv);else updateCont(null);}
     navCheck(L,d);
     {const D=legDist(L), ep=effPerfect(L), rem=D-d, remT=ep-e;
      const sa=slowAtV(L), inSlow=(sa!=null&&d>=sa&&sa<D), finalNoSlow=(rem>0&&rem<0.5&&!inSlow);
      const lt=$("dv-mavg"),ltag=$("dv-mavgtag"),lsub=$("dv-holdd");
      let reqSpd=null; if(rem>0&&remT>0) reqSpd=rem/(remT/3600);
      const mn=MINSP[selClass]||0,tc=TECH[selClass];
-     if(profActive(L)){const _pv=profV(d),_er=instSpd-_pv;lt.textContent=_pv.toFixed(0);lt.style.color="var(--ink)";if(ltag)ltag.textContent="HOLD MPH";lsub.textContent=(Math.abs(_er)<2.5?"on target":(_er>0?("ease "+Math.abs(_er).toFixed(0)):("push "+Math.abs(_er).toFixed(0))));lsub.style.color=Math.abs(_er)<2.5?"var(--green)":(_er>0?"var(--amber)":"var(--cyan)");}
+     if(profActive(L)||L.flat){const _pv=profActive(L)?profV(d):holdSpeed(L),_er=instSpd-_pv;lt.textContent=_pv.toFixed(0);lt.style.color="var(--ink)";if(ltag)ltag.textContent="HOLD MPH";lsub.textContent=(Math.abs(_er)<2.5?"on target":(_er>0?("ease "+Math.abs(_er).toFixed(0)):("push "+Math.abs(_er).toFixed(0))));lsub.style.color=Math.abs(_er)<2.5?"var(--green)":(_er>0?"var(--amber)":"var(--cyan)");}
      else if(inSlow){
        if(reqSpd!=null){const bad=(mn>0&&reqSpd<mn)||(tc&&reqSpd>tc);lt.textContent=reqSpd.toFixed(1);lt.style.color=bad?"var(--red)":"var(--ink)";}
        else{lt.textContent="—";lt.style.color="var(--ink)";}
@@ -649,7 +652,7 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     if(typeof o.profileOn==='boolean') profileOn=o.profileOn;
     if(o.treeIv) treeIv=o.treeIv;
     if(typeof o.startTrim==='number') startTrim=o.startTrim;
-    if(Array.isArray(o.legs)) o.legs.forEach((L,i)=>{ if(i<2){
+    if(Array.isArray(o.legs)) o.legs.forEach((L,i)=>{ if(i<legs.length){
       if(L.perfect) legs[i].perfect=L.perfect;
       if(L.dist) legs[i].dist=L.dist;
       if(L.slowAt!=null) legs[i].slowAt=L.slowAt; if(L.slowSpeed!=null) legs[i].slowSpeed=L.slowSpeed; if(Array.isArray(L.gates)){const dg=legs[i].gates||[];legs[i].gates=L.gates.map(g=>{const gf=parseFloat(g.ft);let best=null,bd=1500;dg.forEach(d=>{const df=parseFloat(d.ft);if(isFinite(gf)&&isFinite(df)&&Math.abs(df-gf)<=bd){bd=Math.abs(df-gf);best=d;}});return {ft:g.ft||"",label:g.label||"",lat:best?best.lat:null,lon:best?best.lon:null};});}
