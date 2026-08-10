@@ -116,7 +116,7 @@
 </style>
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-  <span class="eyebrow" style="margin:0">Sandhills Open Road &middot; GPS Pace &middot; <b style="color:var(--teal)">build 36</b></span>
+  <span class="eyebrow" style="margin:0">Sandhills Open Road &middot; GPS Pace &middot; <b style="color:var(--teal)">build 38</b></span>
   <span id="gpsind" style="font-size:11px;font-weight:800;font-family:var(--mono);color:var(--muted)">&#9679; GPS</span>
 </div>
 <div id="mainflash"></div>
@@ -242,19 +242,18 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   const MINSP={60:0,80:60,90:70,95:75,100:80,105:85,110:90,115:95,120:100,125:105};
 
   let selClass=120, activeLeg=0;
-  const NOTES=[[1.63,106,1],[1.73,100,1],[2.26,108,1],[2.57,109,1],[4.92,86,2],[4.98,88,2],[5.37,109,1],[5.49,105,2],[6.01,106,2],[6.32,103,1],[6.61,107,1],[6.78,116,2],[7.41,117,2],[7.6,115,1],[12.72,106,2],[13.01,108,1],[13.07,109,1],[13.95,101,1],[14.31,112,1],[14.37,116,1],[14.43,118,1],[14.71,117,1],[15.32,121,2],[16.57,91,2],[16.69,97,2],[17.22,114,2],[17.28,121,2],[18.01,119,1],[18.55,122,1],[20.46,122,1],[20.73,119,1],[21.06,101,2],[21.28,110,2],[21.82,114,1],[25.46,102,2],[26.08,102,1],[26.43,99,2]],NAVLEAD=7.0;let navPtr=0,navOn=true;
-  const P2=[4,79,99,102,112,119,123,125,125,125,123,119,120,119,116,112,106,100,109,114,116,117,114,108,115,114,107,117,123,126,128,130,130,128,130,132,132,131,130,129,132,132,133,134,133,130,125,118,105,86,91,101,106,109,108,104,113,117,116,113,106,112,111,103,112,114,107,115,115,115,121,124,124,121,117,120,115,119,118,118,122,127,130,133,135,136,134,135,138,137,136,136,138,140,141,142,140,140,141,142,143,143,143,143,142,142,141,142,142,139,140,141,140,142,141,140,138,133,135,135,132,126,126,124,119,111,102,106,109,109,108,109,117,121,122,121,117,109,107,101,110,113,113,112,118,121,120,117,127,132,134,134,129,121,128,131,131,129,135,136,136,134,130,124,114,94,95,98,108,114,118,117,114,125,130,132,132,130,122,122,119,125,127,127,125,124,114,122,126,127,125,122,131,136,137,138,134,135,132,128,126,118,123,121,119,123,123,119,118,115,105,106,108,115,120,122,122,119,114,124,131,134,137,137,136,138,137,139,140,142,144,144,144,143,141,140,138,135,131,124,123,123,123,122,120,117,116,117,115,113,109,106,105,104,102,103,103,101,104,104,102,103,103,102,99,102,103],P2STEP=0.1;let P2CUM=null,P2TOTAL=0,profileOn=true,contOn=true;
-  function buildP2(){P2CUM=[0];let t=0;for(let i=0;i<P2.length-1;i++){const v=(P2[i]+P2[i+1])/2;t+=(P2STEP/v)*3600;P2CUM.push(t);}P2TOTAL=t;}
-  buildP2();
-  function profActive(L){return profileOn&&L===legs[1]&&!!P2CUM;}
-  function profV(mi){const x=mi/P2STEP;let i=Math.floor(x);if(i<0)i=0;if(i>=P2.length-1)return P2[P2.length-1];const f=x-i;return P2[i]+(P2[i+1]-P2[i])*f;}
-  function profT(mi,L){if(!P2CUM)return null;const x=mi/P2STEP;let i=Math.floor(x),raw;if(i<0)i=0;if(i>=P2CUM.length-1){raw=P2TOTAL;}else{const f=x-i;raw=P2CUM[i]+(P2CUM[i+1]-P2CUM[i])*f;}const T=effPerfect(L);return (P2TOTAL>0&&T>0)?raw*(T/P2TOTAL):raw;}
+  const P2STEP=0.1,NAVLEAD=7.0;let profileOn=true,contOn=true,navOn=true,navPtr=0;
+  function buildProfiles(){legs.forEach(L=>{if(Array.isArray(L.profile)&&L.profile.length>1){const c=[0];let t=0;for(let i=0;i<L.profile.length-1;i++){const v=(L.profile[i]+L.profile[i+1])/2;t+=(P2STEP/Math.max(v,1))*3600;c.push(t);}L.pcum=c;L.ptot=t;}});}
+  buildProfiles();
+  function profActive(L){return profileOn&&Array.isArray(L.profile)&&L.profile.length>1&&!!L.pcum;}
+  function profV(L,mi){const P=L.profile;const x=mi/P2STEP;let i=Math.floor(x);if(i<0)i=0;if(i>=P.length-1)return P[P.length-1];const f=x-i;return P[i]+(P[i+1]-P[i])*f;}
+  function profT(L,mi){const C=L.pcum,tot=L.ptot;if(!C)return null;const x=mi/P2STEP;let i=Math.floor(x),raw;if(i<0)i=0;if(i>=C.length-1){raw=tot;}else{const f=x-i;raw=C[i]+(C[i+1]-C[i])*f;}const T=effPerfect(L);return (tot>0&&T>0)?raw*(T/tot):raw;}
   const legs=[
     {name:"Leg 1 (up)",perfect:"14:21.000",dist:"28.73",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,fLat:41.763993,fLon:-100.091920,slowAt:"",slowSpeed:"105",gates:[],snaps:[{mi:3.9,lat:41.487265,lon:-100.195884},{mi:9.59,lat:41.566687,lon:-100.194010},{mi:15.57,lat:41.615490,lon:-100.151184},{mi:21.32,lat:41.697601,lon:-100.155769},{mi:25.08,lat:41.739155,lon:-100.135470}],
      wps:[{label:"WP 1",d:"28.00",a:"",la:null,lo:null},{label:"Finish",d:"28.73",a:"",la:null,lo:null}]},
-    {name:"Leg 2 (return)",perfect:"13:18.000",dist:"26.66",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,fLat:41.469000,fLon:-100.200569,slowAt:"23.82",slowSpeed:"105",gates:[{ft:"15048",label:"Rd 806",lat:41.508972,lon:-100.195000},{ft:"4277",label:"",lat:41.479589,lon:-100.195239},{ft:"1296",label:"fence gate",lat:41.472458,lon:-100.199648}],snaps:[{mi:5.08,lat:41.737374,lon:-100.152552},{mi:10.86,lat:41.654631,lon:-100.156326},{mi:15.78,lat:41.609819,lon:-100.183234},{mi:20.8,lat:41.550020,lon:-100.197568}],
+    {name:"Leg 2 (return)",perfect:"13:18.000",dist:"26.66",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,fLat:41.469000,fLon:-100.200569,slowAt:"23.82",slowSpeed:"105",gates:[{ft:"15048",label:"Rd 806",lat:41.508972,lon:-100.195000},{ft:"4277",label:"",lat:41.479589,lon:-100.195239},{ft:"1296",label:"fence gate",lat:41.472458,lon:-100.199648}],snaps:[{mi:5.08,lat:41.737374,lon:-100.152552},{mi:10.86,lat:41.654631,lon:-100.156326},{mi:15.78,lat:41.609819,lon:-100.183234},{mi:20.8,lat:41.550020,lon:-100.197568}],profile:[4,79,99,102,112,119,123,125,125,125,123,119,120,119,116,112,106,100,109,114,116,117,114,108,115,114,107,117,123,126,128,130,130,128,130,132,132,131,130,129,132,132,133,134,133,130,125,118,105,86,91,101,106,109,108,104,113,117,116,113,106,112,111,103,112,114,107,115,115,115,121,124,124,121,117,120,115,119,118,118,122,127,130,133,135,136,134,135,138,137,136,136,138,140,141,142,140,140,141,142,143,143,143,143,142,142,141,142,142,139,140,141,140,142,141,140,138,133,135,135,132,126,126,124,119,111,102,106,109,109,108,109,117,121,122,121,117,109,107,101,110,113,113,112,118,121,120,117,127,132,134,134,129,121,128,131,131,129,135,136,136,134,130,124,114,94,95,98,108,114,118,117,114,125,130,132,132,130,122,122,119,125,127,127,125,124,114,122,126,127,125,122,131,136,137,138,134,135,132,128,126,118,123,121,119,123,123,119,118,115,105,106,108,115,120,122,122,119,114,124,131,134,137,137,136,138,137,139,140,142,144,144,144,143,141,140,138,135,131,124,123,123,123,122,120,117,116,117,115,113,109,106,105,104,102,103,103,101,104,104,102,103,103,102,99,102,103],notes:[[1.63,106,1],[1.73,100,1],[2.26,108,1],[2.57,109,1],[4.92,86,2],[4.98,88,2],[5.37,109,1],[5.49,105,2],[6.01,106,2],[6.32,103,1],[6.61,107,1],[6.78,116,2],[7.41,117,2],[7.6,115,1],[12.72,106,2],[13.01,108,1],[13.07,109,1],[13.95,101,1],[14.31,112,1],[14.37,116,1],[14.43,118,1],[14.71,117,1],[15.32,121,2],[16.57,91,2],[16.69,97,2],[17.22,114,2],[17.28,121,2],[18.01,119,1],[18.55,122,1],[20.46,122,1],[20.73,119,1],[21.06,101,2],[21.28,110,2],[21.82,114,1],[25.46,102,2],[26.08,102,1],[26.43,99,2]],
      wps:[{label:"Rd 806",d:"26.19",a:"",la:null,lo:null},{label:"WP 2",d:"26.40",a:"",la:null,lo:null},{label:"Finish",d:"26.66",a:"",la:null,lo:null}]},
-    {name:"Test 60",perfect:"5:00.000",dist:"5.00",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,fLat:null,fLon:null,slowAt:"",slowSpeed:"60",flat:true,gates:[],snaps:[],
+    {name:"Test 60",perfect:"5:00.000",dist:"5.00",rec:null,startLat:null,startLon:null,endLat:null,endLon:null,fLat:null,fLon:null,slowAt:"",slowSpeed:"50",flat:true,gates:[],snaps:[],profile:[1,32,44,48,51,52,52,51,49,47,43,47,48,49,50,50,51,53,53,53,51,53,56,56,55,54,50,45,50,55,57,58,58,56,54,53,51,50,48,48,51,51,52,51,50,52,55,56,57,54],notes:[[0.79,50,1],[1.0,46,1],[1.25,46,2],[1.4,49,1],[1.53,50,2],[1.66,52,1],[1.9,53,1],[2.03,51,1],[2.38,56,1],[2.72,45,2],[2.88,52,1],[3.1,57,1],[3.36,54,1],[3.63,51,2],[3.83,48,1],[4.46,48,2],[4.65,56,1],[4.87,55,1]],
      wps:[{label:"Finish",d:"5.00",a:"",la:null,lo:null}]}
   ];
 
@@ -289,12 +288,12 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   function phase1Speed(L){const D=legDist(L),T=effPerfect(L),sa=slowAtV(L);
     if(sa==null||!(D>0)||!(T>0)||sa>=D)return null;
     const v2=slowSpdV(L),t2=(D-sa)/v2*3600,t1=T-t2;return t1>0?sa/(t1/3600):null;}
-  function targetSec(L,x){if(profActive(L)){const pt=profT(x,L);if(pt!=null)return pt;}const D=legDist(L),T=effPerfect(L);if(!(D>0)||!(T>0))return null;
+  function targetSec(L,x){if(profActive(L)){const pt=profT(L,x);if(pt!=null)return pt;}const D=legDist(L),T=effPerfect(L);if(!(D>0)||!(T>0))return null;
     const sa=slowAtV(L);
     if(sa==null||sa>=D){return x/(D/(T/3600))*3600;}
     const v1=phase1Speed(L);if(v1==null)return null;const v2=slowSpdV(L),t1=sa/(v1/3600);
     return (x<=sa)?x/v1*3600:t1+(x-sa)/v2*3600;}
-  function curTargetSpeed(L,x,e){if(profActive(L))return profV(x);const sa=slowAtV(L);if(sa==null||sa>=legDist(L))return holdSpeed(L);if(x<sa)return phase1Speed(L);
+  function curTargetSpeed(L,x,e){if(profActive(L))return profV(L,x);const sa=slowAtV(L);if(sa==null||sa>=legDist(L))return holdSpeed(L);if(x<sa)return phase1Speed(L);
     if(e!=null){const remD=legDist(L)-x,remT=effPerfect(L)-e;if(remD>0&&remT>0){let v=remD/(remT/3600);const mn=MINSP[selClass]||0,tx=TECH[selClass]||999;return Math.max(mn,Math.min(tx,v));}}
     return slowSpdV(L);}
   // projected finish error at current speed: + = will cross early (too fast), - = late (too slow)
@@ -311,11 +310,11 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
   function stopCont(){if(contGain&&audioCtx)contGain.gain.setTargetAtTime(0,audioCtx.currentTime,0.05);}
   function speak(txt){try{if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(txt);u.rate=1.15;u.pitch=1;u.volume=1;window.speechSynthesis.speak(u);}}catch(e){}}
   function spdWords(n){n=Math.round(n);const o=["","one","two","three","four","five","six","seven","eight","nine"],tn={2:"twenty",3:"thirty",4:"forty",5:"fifty",6:"sixty",7:"seventy",8:"eighty",9:"ninety"},te={10:"ten",11:"eleven",12:"twelve",13:"thirteen",14:"fourteen",15:"fifteen",16:"sixteen",17:"seventeen",18:"eighteen",19:"nineteen"};function tw(x){if(x<10)return o[x];if(x<20)return te[x];return tn[Math.floor(x/10)]+(x%10?" "+o[x%10]:"");}if(n<100)return tw(n);const r=n-100;if(r===0)return "one hundred";if(r<10)return "one oh "+o[r];return "one "+tw(r);}
-  function navCheck(L,d){if(!navOn||!running||!profActive(L)||instSpd<12)return;
-    while(navPtr<NOTES.length&&NOTES[navPtr][0]<d-0.02)navPtr++;   // fell behind -> skip to the corner you are actually approaching
-    if(navPtr>=NOTES.length)return;
-    if(window.speechSynthesis&&window.speechSynthesis.speaking)return;   // one call at a time, chains as each finishes
-    const n=NOTES[navPtr],leadMi=(instSpd/3600)*NAVLEAD;
+  function navCheck(L,d){if(!navOn||!running||!profActive(L)||instSpd<12)return;const NT=L.notes||[];
+    while(navPtr<NT.length&&NT[navPtr][0]<d-0.02)navPtr++;
+    if(navPtr>=NT.length)return;
+    if(window.speechSynthesis&&window.speechSynthesis.speaking)return;
+    const n=NT[navPtr],leadMi=(instSpd/3600)*NAVLEAD;
     if(n[0]-d<=leadMi){const dir=n[2]===1?"left":"right";speak(dir+" "+spdWords(n[1]));navPtr++;}}
   function demoTone(){initAudio();if(!contOsc||!contGain||!audioCtx){alert('No audio yet — tap the screen once, set the ring switch on, turn volume up, then try again.');return;}
     const seq=[[-15,0],[-9,800],[-4,1500],[0,2100],[4,2700],[9,3300],[15,3900]];
@@ -401,9 +400,9 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
 
   // timer
   function nextBoundary(iv){const now=Date.now()/1000;return (Math.floor(now/iv)+1)*iv*1000;}
-  function startAt(ms){startTs=ms;stoppedElapsed=0;running=true;armedStart=null;if(activeLeg===0){trackLog=[];}lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];easeWarned=false;navPtr=0;refreshButtons();}
+  function startAt(ms){startTs=ms;stoppedElapsed=0;running=true;armedStart=null;distMi=0;instSpd=0;if(activeLeg!==1){trackLog=[];}lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];easeWarned=false;navPtr=0;refreshButtons();}
   function stopClock(){if(running){stoppedElapsed=elapsed();running=false;refreshButtons();}}
-  function manualStart(){startTs=Date.now()-stoppedElapsed*1000;running=true;lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];easeWarned=false;navPtr=0;refreshButtons();}
+  function manualStart(){startTs=Date.now()-stoppedElapsed*1000;running=true;if(stoppedElapsed===0){distMi=0;instSpd=0;if(activeLeg!==1)trackLog=[];}lastFix=(curLat!=null)?{lat:curLat,lon:curLon}:null;lastBeepSec=null;gatesPassed=[false,false,false];finishToneDone=false;snapsDone=[];easeWarned=false;navPtr=0;refreshButtons();}
   function arm(){armedStart=nextBoundary(treeIv)+startTrim*1000;autoFinished=false;refreshButtons();}
   function cancelArm(){armedStart=null;refreshButtons();}
   function primaryAction(){initAudio();if(running)stopClock();else if(autoStartOn){armedStart==null?arm():cancelArm();}else manualStart();paintDash();}
@@ -482,14 +481,14 @@ position as you pass it, drift-free. GPS needs Location permission — open in S
     let mAvg=(d>0&&e>0)?d/(e/3600):null;
     const ok=(mAvg==null)||(mAvg<=250);
     if(!ok)mAvg=null;
-    {const _tv=profActive(L)?profV(d):(L.flat?holdSpeed(L):null);if(running&&_tv!=null&&instSpd>=0)updateCont(instSpd-_tv);else updateCont(null);}
+    {const _tv=profActive(L)?profV(L,d):(L.flat?holdSpeed(L):null);if(running&&_tv!=null&&instSpd>=0)updateCont(instSpd-_tv);else updateCont(null);}
     navCheck(L,d);
     {const D=legDist(L), ep=effPerfect(L), rem=D-d, remT=ep-e;
      const sa=slowAtV(L), inSlow=(sa!=null&&d>=sa&&sa<D), finalNoSlow=(rem>0&&rem<0.5&&!inSlow);
      const lt=$("dv-mavg"),ltag=$("dv-mavgtag"),lsub=$("dv-holdd");
      let reqSpd=null; if(rem>0&&remT>0) reqSpd=rem/(remT/3600);
      const mn=MINSP[selClass]||0,tc=TECH[selClass];
-     if(profActive(L)||L.flat){const _pv=profActive(L)?profV(d):holdSpeed(L),_er=instSpd-_pv;lt.textContent=_pv.toFixed(0);lt.style.color="var(--ink)";if(ltag)ltag.textContent="HOLD MPH";lsub.textContent=(Math.abs(_er)<2.5?"on target":(_er>0?("ease "+Math.abs(_er).toFixed(0)):("push "+Math.abs(_er).toFixed(0))));lsub.style.color=Math.abs(_er)<2.5?"var(--green)":(_er>0?"var(--amber)":"var(--cyan)");}
+     if(profActive(L)||L.flat){const _pv=profActive(L)?profV(L,d):holdSpeed(L),_er=instSpd-_pv;lt.textContent=_pv.toFixed(0);lt.style.color="var(--ink)";if(ltag)ltag.textContent="HOLD MPH";lsub.textContent=(Math.abs(_er)<2.5?"on target":(_er>0?("ease "+Math.abs(_er).toFixed(0)):("push "+Math.abs(_er).toFixed(0))));lsub.style.color=Math.abs(_er)<2.5?"var(--green)":(_er>0?"var(--amber)":"var(--cyan)");}
      else if(inSlow){
        if(reqSpd!=null){const bad=(mn>0&&reqSpd<mn)||(tc&&reqSpd>tc);lt.textContent=reqSpd.toFixed(1);lt.style.color=bad?"var(--red)":"var(--ink)";}
        else{lt.textContent="—";lt.style.color="var(--ink)";}
